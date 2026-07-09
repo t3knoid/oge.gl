@@ -1,0 +1,175 @@
+---
+description: "Frontend oge.gl rules for React UI work, accessibility, API usage, filter state, and frontend validation."
+alwaysApply: false
+globs:
+  - "web/**/*"
+---
+
+# oge.gl - Frontend Addendum
+
+Apply when touching React components, TypeScript, CSS, frontend tests, routing, state management, or browser interactions.
+
+This file governs untrusted UI behavior, accessibility, component patterns, API usage, and frontend validation.
+Global security, audit, and backend rules remain governed by `core.mdc` and `backend.mdc`.
+
+---
+
+## 1. Trust Boundary (Frontend Is Untrusted)
+
+- the frontend is untrusted and must assume backend responses are authoritative
+- the frontend communicates only through the API
+- the frontend must never:
+  - touch the database
+  - scrape the OGE source site directly
+  - infer internal file paths or infrastructure state
+  - bypass backend filtering or access constraints
+- all sensitive logic and source-discovery behavior must remain in the backend or scraper services
+
+---
+
+## 2. API Usage And Error Handling
+
+### 2.1 API Client Rules
+
+- all API calls must go through a centralized API client
+- do not place inline `fetch` calls throughout components when a shared client exists
+- API URLs and parameter serialization must not be hard-coded inconsistently across components
+- the API client must:
+  - normalize errors
+  - return typed responses
+  - preserve query parameter behavior for combined filters
+  - avoid leaking backend internals
+
+### 2.2 Error Surfaces
+
+- UI must show safe, user-friendly error messages
+- never display:
+  - raw exceptions
+  - raw backend errors
+  - absolute paths
+  - infrastructure-only details
+- errors should be categorized, for example validation, unavailable, or conflict
+
+### 2.3 Loading And Empty States
+
+- all API-driven components must implement:
+  - loading state
+  - empty state
+  - error state
+  - retry behavior where appropriate
+
+---
+
+## 3. Search And Filter Behavior
+
+- the UI must support filer name, description, trade type, date, and amount filters as documented
+- filter composition must be preserved when users combine criteria
+- URLs should preserve filter state when routing or navigation patterns support it
+- filtering must be API-driven; do not rely on client-only filtering for authoritative results
+- source PDF links must remain easy to access from result views
+
+---
+
+## 4. State Management
+
+- stores or hooks must not mutate state unpredictably
+- derived state should be computed, not duplicated unnecessarily
+- UI state may manage filters, pagination, selection, and loading state
+- business logic, normalization, and provenance rules must remain in the backend
+- avoid global state unless the state is truly global
+
+---
+
+## 5. Routing And Navigation
+
+- routing must support direct navigation to search and detail views when those routes exist
+- route behavior must preserve filter state when appropriate
+- do not collide with API paths or make the browser depend on direct PDF scraping behavior
+- navigation should make source document access clear without disrupting result exploration
+
+---
+
+## 6. Accessibility
+
+### 6.1 Interactive Elements
+
+- all interactive elements must be keyboard operable
+- prefer native elements such as `button`, `a`, and `input`
+- focus order must be logical and predictable
+- all inputs must have labels
+- icon-only controls must have accessible labels
+
+### 6.2 Tables And Results
+
+- search results must remain understandable to keyboard and screen-reader users
+- sortable headers, pagination controls, and row actions must be accessible
+- loading and empty states must be announced or otherwise perceivable
+
+### 6.3 Dialogs And Panels
+
+- dialogs and drawers must trap focus when appropriate
+- focus must restore on close
+- Escape-to-close behavior must be supported where expected
+
+---
+
+## 7. Component, Styling, And Template Patterns
+
+- inspect the closest existing component with the same visual or interaction pattern before creating a new one
+- components must be small, focused, and composable
+- avoid monolithic components with mixed responsibilities
+- remove unused styles
+- keep class names aligned with actual template usage
+- prefer local or component-scoped styling over broad global overrides when possible
+
+---
+
+## 8. Frontend Validation
+
+- validate user input before sending it to the backend
+- validation must mirror backend rules but not replace them
+- user-entered dates, amount filters, and text inputs should be normalized for UI consistency where appropriate
+- do not rely on frontend validation for security or authoritative correctness
+
+---
+
+## 9. Frontend Testing Expectations
+
+When modifying components, tests must cover:
+
+- filter serialization and restoration
+- loading, empty, and error states
+- keyboard accessibility
+- focus behavior where relevant
+- API error handling
+- source PDF link rendering
+- edge cases such as empty results, long descriptions, and combined filters
+
+Use:
+
+- Vitest or Jest
+- Testing Library
+- Playwright for E2E when relevant
+
+Tests must not rely on timing hacks or incorrect backend assumptions.
+
+---
+
+## 10. Frontend Documentation And UI Wording
+
+- when updating UI-facing documentation or QA text, describe current behavior directly
+- keep UI wording aligned with actual filter behavior and search-field names
+- avoid leaving old behavior descriptions behind
+
+---
+
+## 11. Out Of Scope
+
+Do not redefine:
+
+- backend business logic or scraper rules
+- global security, logging, or audit rules
+- schema or migration rules
+- shell, subprocess, or Docker rules
+
+This file governs frontend behavior, accessibility, UI patterns, and API usage only.

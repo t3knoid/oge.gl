@@ -1,0 +1,189 @@
+---
+description: "Always-on oge.gl core rules covering provenance, trust boundaries, safe handling of public-source data, architecture, logging, and validation expectations."
+alwaysApply: true
+globs:
+  - "**/*"
+---
+
+# oge.gl - Core Rules
+
+This file defines global, cross-cutting, non-negotiable rules that apply to every part of the oge.gl codebase.
+Backend, scraper, frontend, shell, and documentation-specific rules live in their respective addenda.
+
+---
+
+## 1. Rule Priority
+
+When rules conflict, follow this order:
+
+1. Data integrity, provenance, trust boundaries, and safe handling of untrusted or externally sourced data
+2. Architecture boundaries, reproducible ingestion, and idempotent persistence behavior
+3. Task requirements and established repository patterns
+4. Tests and validation
+5. Style and tooling
+
+If a requested change conflicts with provenance, trust boundaries, public-data safety, or reproducible ingestion behavior, preserve safety and ask.
+
+---
+
+## 2. Working Mode
+
+Always:
+
+- inspect nearby code before changing patterns
+- prefer the smallest correct change
+- preserve existing abstractions unless restructuring is explicitly required
+- add or update focused tests for changed behavior
+- validate the narrowest affected surface first
+- match existing architectural, API, and documentation patterns
+- preserve traceability from normalized records back to source documents
+
+Do not:
+
+- refactor unrelated code
+- change public behavior unless required
+- introduce new dependencies without clear need
+- expose raw exceptions, internal paths, secrets, or unsafe implementation details in logs, API responses, or documentation
+- drop source provenance or raw extraction context when it is required for auditability
+
+---
+
+## 3. Core Invariants (Global)
+
+oge.gl is a public-disclosure search application for OGE Form 278-T filings.
+All changes must preserve:
+
+- traceability from each normalized transaction back to a source PDF
+- idempotent ingestion and duplicate prevention
+- deterministic normalization rules for dates, trade types, and amount buckets where possible
+- clear separation between scraper, API, persistence, and frontend responsibilities
+- secure defaults
+- future extensibility for improved parsing, reprocessing, and operator visibility
+
+These invariants apply to every layer.
+
+---
+
+## 4. Trust Boundaries (Global)
+
+- System layers (trusted)
+  - discover filings, download PDFs, parse source documents, normalize records, and write to storage
+  - enforce validation, pagination, filtering, and response shaping
+  - write logs and ingestion diagnostics
+  - are the only layers allowed to touch the database or infrastructure adapters directly
+
+- Source website and PDFs (untrusted external input)
+  - must be treated as externally controlled data even though the site is authoritative for disclosures
+  - may contain missing fields, inconsistent formatting, malformed content, or layout drift
+  - must be normalized and validated before persistence or display
+
+- Frontend layer (untrusted)
+  - communicates only through the API
+  - must never touch the database directly
+  - must never scrape the OGE source site directly
+  - must never be treated as a source of truth for business logic or security decisions
+
+- Architecture
+  - routers validate input and delegate to services
+  - business logic belongs in services, not routers or UI components
+  - persistence code handles database access only
+  - infrastructure code handles external I/O, network access, file storage, and OS-level behavior
+
+---
+
+## 5. Security, Logging, And Error Safety (Global)
+
+### 5.1 Security
+
+Always:
+
+- treat all remote HTML, PDF content, and user-supplied query parameters as untrusted input
+- sanitize and normalize input used in identifiers, headers, paths, and query parameters
+- prevent traversal, injection, malformed-input, and unsafe file-path behavior
+- keep API responses safe and consistent
+- validate canonical source URLs before download or storage
+
+Never:
+
+- use `eval`, `exec`, or dynamic code execution
+- enable insecure defaults such as debug mode in production or unsafe open CORS
+- leak credentials, internal paths, raw exception strings, or unsafe OS details
+
+### 5.2 Logging
+
+- use structured logging with clear event names and context
+- log handled failure paths, degraded behavior, retry attempts, and unexpected states
+- do not rely solely on unhandled-exception logging
+- prefer safe operator-facing summaries at info, warning, and error levels
+- preserve enough metadata to re-run or diagnose a failed filing ingestion without logging secrets or unsafe local paths
+
+### 5.3 Provenance And Auditability
+
+- normalized transaction records must retain a path back to source filing metadata and source PDF identity
+- logs and diagnostics must support investigation of parse failures, normalization warnings, and duplicate prevention behavior
+- raw extraction artifacts should remain available where needed for debugging, but must not be surfaced unsafely to end users
+
+---
+
+## 6. Tests And Validation (Global)
+
+All new behavior must include tests when practical.
+
+Use pytest conventions for Python backend code:
+
+- use `pytest`, not `unittest`
+- use fixtures instead of `setUp` and `tearDown`
+- use bare `assert`
+- use `pytest.raises`
+- use snake_case test names
+
+Tests must cover:
+
+- malformed or inconsistent source input handling where relevant
+- duplicate prevention and idempotency where relevant
+- filtering and pagination behavior where relevant
+- error cases and safe error responses
+- edge cases such as empty results, missing fields, ambiguous dates, and unparseable amounts
+- provenance-preservation behavior when relevant
+
+---
+
+## 7. Tooling And CI (Global)
+
+Code should follow the tooling used by the repository and touched surface.
+
+CI expectations:
+
+- run the narrowest relevant checks first
+- all new behavior must be covered by automated checks where practical
+- backend, scraper, frontend, integration, and documentation checks must pass when relevant
+- schema and migration validation must pass when relevant
+- ingestion behavior and API contract changes must stay aligned with documentation
+
+---
+
+## 8. Comments And Documentation
+
+- comments and documentation must match actual behavior
+- when behavior changes, update comments and nearby documentation in the same change
+- do not leave stricter or looser comments behind
+- phrase documentation and comments as direct current-state expectations rather than old-versus-new comparisons
+- fix mismatches immediately
+
+Documentation sync requirements:
+
+- product behavior changes must update `docs/product-specification.md`
+- development workflow, stack, environment, or operational changes must update `docs/development-requirements.md`
+
+---
+
+## 9. Addenda Routing
+
+Additional scoped rules live beside this file:
+
+- `backend.mdc` - Python scraper, API, persistence, and backend tests
+- `docs.mdc` - README, product specification, development requirements, and other repository documentation
+- `frontend.mdc` - React, TypeScript, CSS, state, routing, and frontend tests
+- `shell-docker.mdc` - shell, subprocess, Docker, Compose, and deployment safety
+
+This file remains the always-on baseline for all work in the repository.

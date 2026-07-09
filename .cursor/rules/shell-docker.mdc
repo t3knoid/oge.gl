@@ -1,0 +1,157 @@
+---
+description: "Shell, subprocess, Docker, Compose, and environment-handling rules for oge.gl system-layer execution."
+alwaysApply: false
+globs:
+  - "**/*.sh"
+  - "Dockerfile"
+  - "**/Dockerfile"
+  - "docker-compose*.yml"
+  - "docker-compose*.yaml"
+  - "deploy/**/*"
+  - "scripts/**/*"
+  - ".env*"
+---
+
+# oge.gl - Shell And Docker Addendum
+
+Apply when touching shell scripts, subprocess code, Dockerfiles, entrypoints, Compose files, or environment-file handling.
+
+This file governs system-layer execution safety, subprocess correctness, container hardening, and deployment hygiene.
+Global trust-boundary, logging, and documentation rules remain governed by `core.mdc`, while scraper and API architecture remain governed by `backend.mdc`.
+
+---
+
+## 1. Shell And Subprocess Safety
+
+### 1.1 Forbidden Patterns
+
+Never:
+
+- use `shell=True` in Python subprocess calls
+- use backticks for command substitution
+- use unquoted variable expansion in path-sensitive or destructive commands
+- perform silent destructive operations
+- parse `.env` files with unsafe splitting logic
+- embed secrets in scripts or Dockerfiles
+- assume interactive shells or TTY availability
+
+### 1.2 Required Patterns
+
+Always:
+
+- quote all variable expansions (`"$VAR"`)
+- use `$(cmd)` instead of backticks
+- use `set -euo pipefail` in Bash
+- use explicit argument lists for subprocess calls
+- validate and sanitize file and directory paths before use
+- enforce timeouts for subprocess operations
+- log sanitized error information instead of raw stderr dumps
+
+### 1.3 Subprocess Execution Rules
+
+- subprocess calls that are part of application behavior must go through infrastructure wrappers when those abstractions exist
+- commands must be passed as lists, not strings
+- do not rely on implicit `PATH` resolution when a stable executable path is available and important
+- subprocess output must be sanitized before logging or returning upward
+
+---
+
+## 2. Dockerfile Rules
+
+### 2.1 Base Image And Build Hygiene
+
+- pin base images to specific versions where practical
+- use multi-stage builds to keep production images minimal
+- production images must not contain unnecessary build toolchains
+- avoid `COPY . .` unless explicitly justified
+- exclude heavy, local-only, or sensitive paths via `.dockerignore`
+
+### 2.2 Security Requirements
+
+- do not embed secrets, tokens, or credentials
+- do not use `chmod -R 777`
+- set an explicit non-root `USER` unless root is required and documented
+- use cache-safe install patterns appropriate for the language ecosystem
+- define a `HEALTHCHECK` for long-running services when the image is meant to run independently
+
+### 2.3 Determinism And Reproducibility
+
+- avoid non-deterministic build steps
+- avoid downloading unpinned remote artifacts during builds unless justified
+- document required build arguments in repository documentation
+
+---
+
+## 3. Entrypoints And Startup Scripts
+
+### 3.1 Entrypoint Rules
+
+Entrypoints must:
+
+- use exec form for process handoff where appropriate
+- use `set -euo pipefail` in Bash entrypoints
+- quote all variables
+- validate required environment variables before use
+- avoid inline logic that belongs in application services
+- log sanitized startup failures
+
+### 3.2 Environment Handling
+
+- environment variables that matter for local or container setup must be documented
+- scripts must not assume variables are set; validate explicitly
+- avoid parsing `.env` files manually when framework-supported loading exists
+- never echo secrets or sensitive values
+
+---
+
+## 4. Docker Compose Rules
+
+### 4.1 Safety And Security
+
+- do not mount the Docker socket unless explicitly required and documented
+- do not bind-mount sensitive host paths
+- define healthchecks for long-running services
+- avoid privileged containers unless explicitly required and documented
+
+### 4.2 Environment And Configuration
+
+- document environment variables used by scraper, API, database, and web services
+- avoid environment-variable defaults that mask configuration errors
+- keep local defaults aligned with repository documentation
+
+### 4.3 Networking And Volumes
+
+- use named volumes instead of bind mounts unless bind mounts are required
+- avoid exposing ports unnecessarily
+- use internal networks for inter-service communication where relevant
+
+---
+
+## 5. Deployment And Script Hygiene
+
+- deployment scripts must be idempotent
+- scripts must fail fast and loudly on unexpected conditions
+- no script may assume a specific working directory; resolve paths explicitly
+- destructive operations must require explicit confirmation, flags, or tightly scoped intent
+- deployment artifacts must not contain secrets or environment-specific absolute paths
+
+---
+
+## 6. oge.gl-Specific Expectations
+
+- scraper and API containerization must preserve re-runnable ingestion behavior
+- container or shell changes must not break local development expectations documented in `docs/development-requirements.md`
+- shell and container changes must not bake UI-only assumptions into scraper or API images
+- fixtures, downloaded PDFs, and persistent storage locations must be handled explicitly and safely
+
+---
+
+## 7. Out Of Scope
+
+The following belong to other rule files and must not be redefined here:
+
+- scraper and backend business logic, API routing, service boundaries, and persistence rules -> `backend.mdc`
+- global security, logging, provenance, testing, and documentation rules -> `core.mdc`
+- frontend rules -> `frontend.mdc`
+
+This file governs shell, subprocess, Docker, Compose, and environment-handling safety only.
