@@ -227,7 +227,7 @@ A simple early deployment model is:
 
 As implementation begins, add further documents under `docs/` for:
 
-- schema decisions
+- software design details including exact API schemas, schema constraints, migration strategy, ingestion workflow, deployment topology, and monitoring thresholds
 - parser edge cases
 - API examples
 - ingestion operations
