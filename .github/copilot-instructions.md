@@ -137,14 +137,15 @@ The primary project goals are:
 ## 13. Documentation Rules
 
 1. Write documentation in present tense focused on current behavior.
-2. Avoid historical wording that compares old and new behavior unless necessary.
-3. Keep setup and operational docs accurate for local and production-like environments.
-4. Update comments and nearby documentation in the same change when behavior changes.
-5. Keep `README.md` concise and aligned with deeper docs.
-6. Treat `docs/product-specification.md` as the canonical source for product behavior, source-discovery behavior, searchable fields, provenance expectations, and API-facing behavior.
-7. Treat `docs/development-requirements.md` as the canonical source for stack, workflow, environment, service-boundary, and operational expectations.
-8. Any change to product behavior, searchable fields, source-discovery behavior, provenance expectations, or API-facing behavior must update `docs/product-specification.md` in the same change.
-9. Any change to stack, environment, workflow, deployment, service boundaries, or operational behavior must update `docs/development-requirements.md` in the same change.
+2. Write documentation in non-time-relative language; prefer scope-based wording over chronology-based wording such as `now`, `currently`, `first`, `future`, or `no longer` unless time sequencing is genuinely required.
+3. Avoid historical wording that compares old and new behavior unless necessary.
+4. Keep setup and operational docs accurate for local and production-like environments.
+5. Update comments and nearby documentation in the same change when behavior changes.
+6. Keep `README.md` concise and aligned with deeper docs.
+7. Treat `docs/product-specification.md` as the canonical source for product behavior, source-discovery behavior, searchable fields, provenance expectations, and API-facing behavior.
+8. Treat `docs/development-requirements.md` as the canonical source for stack, workflow, environment, service-boundary, and operational expectations.
+9. Any change to product behavior, searchable fields, source-discovery behavior, provenance expectations, or API-facing behavior must update `docs/product-specification.md` in the same change.
+10. Any change to stack, environment, workflow, deployment, service boundaries, or operational behavior must update `docs/development-requirements.md` in the same change.
 
 ## 14. Code Review Priorities
 

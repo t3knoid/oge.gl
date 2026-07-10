@@ -39,6 +39,7 @@ Global provenance, trust-boundary, and safety rules remain governed by `core.mdc
 Always:
 
 - write in direct present-tense expectations when describing current behavior
+- write in non-time-relative language; prefer scope-based wording over chronology-based wording such as `now`, `currently`, `first`, `future`, or `no longer`
 - keep structure easy to scan with clear section boundaries
 - make requirements specific enough to guide implementation decisions
 - preserve terminology consistency across filer, filing, transaction, description, trade type, transaction date, amount, and source PDF references
@@ -48,6 +49,7 @@ Do not:
 
 - leave contradictory statements across README and docs
 - describe obsolete behavior as if it still applies
+- use time-relative wording when a scope-based statement is clearer
 - add speculative stack or architecture choices without labeling them as recommendations
 - bury key requirements inside long narrative sections when a concise requirement list is clearer
 
