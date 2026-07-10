@@ -174,6 +174,7 @@ The frontend should not contain any scraping logic.
 
 Minimum expected test coverage:
 
+- Python backend and scraper unit tests should use `pytest`.
 - parser tests against sample PDFs
 - normalization tests for amount and date handling
 - API tests for each required filter

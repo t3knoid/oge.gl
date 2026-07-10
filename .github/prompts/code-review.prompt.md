@@ -84,6 +84,7 @@ Treat documentation gaps and missing test follow-up as real findings when the ou
    - Download, storage, or deployment changes remain reproducible and operationally safe.
 
 9. Testing quality
+   - Python backend and scraper tests use `pytest`.
    - Unit tests cover service logic, parser behavior, and normalization changes.
    - API tests cover filtering, pagination, negative cases, and contract-sensitive behavior.
    - Frontend tests cover changed filter behavior and result rendering where relevant.

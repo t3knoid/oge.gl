@@ -45,7 +45,7 @@ Your job is to:
 - identify the root cause for each actionable finding
 - implement the smallest complete fix that resolves the actual defect
 - preserve oge.gl architecture boundaries and provenance requirements
-- add or update focused tests for each fixed issue when practical
+- add or update focused tests for each fixed issue when practical, using `pytest` for Python backend and scraper tests
 - re-run the narrowest checks that prove the finding is resolved
 - update documentation when the fix changes product behavior, API behavior, setup, operations, or UI expectations
 - update `docs/product-specification.md` when the fix changes searchable fields, source-discovery behavior, provenance expectations, or API-facing behavior
@@ -105,7 +105,7 @@ Unless the reviewed change explicitly alters the specification and the docs are 
 6. Reproduce or otherwise validate each finding with evidence when feasible.
 7. Identify the root cause for each finding you will fix.
 8. Describe instruction compliance before coding, including architecture boundaries, provenance safety, error handling, and documentation obligations.
-9. Add or update focused tests first when practical.
+9. Add or update focused tests first when practical, using `pytest` for Python backend and scraper changes.
 10. Implement the minimal root-cause fixes.
 11. Audit the changed behavior for required documentation updates.
 12. Run the relevant verification steps.

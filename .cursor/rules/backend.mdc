@@ -156,6 +156,7 @@ When touching transaction listing, filing listing, or large result-set behavior:
 
 When adding or changing scraper logic, endpoints, services, persistence, or infrastructure, tests must cover:
 
+- Python backend and scraper tests should use `pytest`.
 - request and response validation
 - filter behavior for the required search fields
 - duplicate prevention and idempotency

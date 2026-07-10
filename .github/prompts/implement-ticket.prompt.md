@@ -117,7 +117,7 @@ Your job is to:
 - perform pattern discovery and reuse existing patterns and contracts
 - implement the smallest complete change that satisfies the request
 - keep the solution aligned with oge.gl architecture, provenance, and safety rules
-- add or update automated tests for the changed behavior
+- add or update automated tests for the changed behavior, using `pytest` for Python backend and scraper tests
 - verify the change with the relevant checks before declaring success
 - inspect affected files and behavior to identify required documentation updates
 - implement the necessary documentation changes in the relevant documents
@@ -202,7 +202,7 @@ Documentation constraints:
 5. If schema changes are required, inspect current models and migration history before editing.
 6. Identify the root cause with evidence.
 7. Describe instruction compliance before coding, including trust boundaries, service ownership, safe error handling, provenance handling, and migration fidelity when applicable.
-8. Add or update focused tests first when practical.
+8. Add or update focused tests first when practical, using `pytest` for Python backend and scraper changes.
 9. Implement the minimal root-cause fix using the identified existing patterns.
 10. Audit the changed behavior for required documentation updates using concrete evidence.
 11. Implement the minimal required documentation updates in the relevant documents.
