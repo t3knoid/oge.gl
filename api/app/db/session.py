@@ -13,8 +13,12 @@ def _session_factory() -> sessionmaker[Session]:
     return sessionmaker(bind=engine, autoflush=False, autocommit=False, class_=Session)
 
 
+def new_db_session() -> Session:
+    return _session_factory()()
+
+
 def get_db_session() -> Generator[Session, None, None]:
-    session = _session_factory()()
+    session = new_db_session()
     try:
         yield session
     finally:

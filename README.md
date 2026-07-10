@@ -9,6 +9,7 @@ The detailed product and development documentation lives under [docs/](docs/).
 - [Product specification](docs/product-specification.md)
 - [Development requirements](docs/development-requirements.md)
 - [Software design](docs/software-design.md)
+- [Cloud deployment guide](docs/cloud-install.md)
 
 ## Summary
 

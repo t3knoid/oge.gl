@@ -192,7 +192,7 @@ The services should log:
 - ingestion upsert counts
 - API request failures
 
-Useful future additions:
+Useful additions if implemented:
 
 - ingestion job history
 - row-level extraction diagnostics
@@ -234,7 +234,7 @@ source .venv/bin/activate
 pip install -e .[dev]
 ```
 
-The first implementation slice keeps scraper execution programmatic while the ingestion workflow is still being assembled.
+The scraper setup keeps execution programmatic while the ingestion workflow remains partially implemented.
 
 ## Deployment Considerations
 
@@ -248,14 +248,25 @@ A simple early deployment model is:
 
 - one API service
 - one web frontend
-- one scheduled scraper or worker service
+- one scheduled or continuously polling worker service for queued ingestion execution
 - one PostgreSQL database
+
+For the default managed cloud path on Fly.io and Supabase, see [docs/cloud-install.md](./cloud-install.md).
+
+That cloud path is the default documented deployment target, not a requirement that excludes native deployment. `oge.gl` can also run on a native host or another platform if the documented stack, migration flow, database requirements, and service boundaries are kept intact.
+
+The repository root includes these production API deployment artifacts:
+
+- `Dockerfile` for the public API image
+- `fly.toml` for Fly.io API deployment and release-time migrations
+- a worker process command for queued ingestion execution
 
 ## Documentation Expectations
 
 As implementation begins, add further documents under `docs/` for:
 
 - software design details including exact API schemas, schema constraints, migration strategy, ingestion workflow, deployment topology, and monitoring thresholds
+- cloud deployment steps for the supported managed hosting path
 - parser edge cases
 - API examples
 - ingestion operations
