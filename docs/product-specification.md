@@ -324,6 +324,10 @@ Returns a single normalized transaction with filing metadata.
 
 Returns filing-level data and source metadata.
 
+#### `GET /filings/:id`
+
+Returns a single filing with source metadata and transaction count.
+
 #### `POST /ingest/run`
 
 Triggers an ingestion job. This endpoint can be restricted to internal use.

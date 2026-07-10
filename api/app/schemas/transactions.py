@@ -24,6 +24,21 @@ class TransactionItem(BaseModel):
     source_pdf_url: str
 
 
+class TransactionRecord(BaseModel):
+    row_number: int
+    description: str
+    issuer_name: str | None = None
+    trade_type: str
+    trade_type_raw: str | None = None
+    transaction_date: date | None = None
+    transaction_date_raw: str | None = None
+    amount_text: str | None = None
+    amount_min: int | None = None
+    amount_max: int | None = None
+    raw_text: str
+    confidence_score: float | None = None
+
+
 class TransactionListResponse(BaseModel):
     items: list[TransactionItem]
     page: int = Field(ge=1)
@@ -32,3 +47,14 @@ class TransactionListResponse(BaseModel):
     has_more: bool
     sort: str
     order: str
+
+
+class TransactionDetailResponse(BaseModel):
+    id: str
+    filing: "FilingRecord"
+    transaction: TransactionRecord
+
+
+from app.schemas.filings import FilingRecord
+
+TransactionDetailResponse.model_rebuild()

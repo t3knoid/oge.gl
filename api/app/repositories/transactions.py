@@ -59,6 +59,10 @@ class TransactionRepository:
         ).all()
         return TransactionListResult(rows=rows, total=total)
 
+    def get_transaction(self, session: Session, transaction_id: str) -> tuple[Transaction, Filing] | None:
+        query = select(Transaction, Filing).join(Filing, Transaction.filing_id == Filing.id).where(Transaction.id == transaction_id)
+        return session.execute(query).one_or_none()
+
     def _apply_filters(self, query: Select, filters: TransactionListFilters) -> Select:
         if filters.filer_name:
             query = query.where(Filing.filer_name.ilike(f"%{filters.filer_name}%"))

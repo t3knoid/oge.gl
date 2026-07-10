@@ -209,6 +209,33 @@ Recommended workflow:
 5. start the web app
 6. validate search and source PDF links in the browser
 
+### API Startup Commands
+
+Example local API startup flow:
+
+```bash
+cd api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/oge"
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Scraper Startup Commands
+
+Example local scraper setup flow:
+
+```bash
+cd scraper
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+```
+
+The first implementation slice keeps scraper execution programmatic while the ingestion workflow is still being assembled.
+
 ## Deployment Considerations
 
 Initial deployment should prioritize:

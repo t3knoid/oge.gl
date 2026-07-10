@@ -1,28 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from urllib.parse import urljoin
 
 import httpx
 from bs4 import BeautifulSoup
 
+from app.discovery.models import DiscoveryRecord
+
 
 DEFAULT_OGE_COLLECTION_URL = (
     "https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm"
 )
-
-
-@dataclass
-class DiscoveryRecord:
-    filing_date: str
-    position: str
-    type_label: str
-    filer_name: str
-    agency: str
-    level: str
-    source_page_url: str
-    source_pdf_url: str | None
-
 
 class OgeDiscoveryClient:
     def __init__(self, *, base_url: str = DEFAULT_OGE_COLLECTION_URL, timeout: float = 30.0) -> None:

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/oge"
 
     model_config = SettingsConfigDict(
-        env_prefix="OGE_",
+        env_prefix="",
         extra="ignore",
     )
 

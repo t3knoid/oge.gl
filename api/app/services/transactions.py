@@ -6,7 +6,8 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.repositories.transactions import TransactionListFilters, TransactionRepository
-from app.schemas.transactions import TransactionItem, TransactionListResponse
+from app.schemas.transactions import TransactionDetailResponse, TransactionItem, TransactionListResponse, TransactionRecord
+from app.schemas.filings import FilingRecord
 
 
 @dataclass
@@ -81,3 +82,42 @@ class TransactionService:
             sort=query.sort,
             order=query.order,
         )
+
+    def get_transaction(self, session: Session, transaction_id: str) -> TransactionDetailResponse | None:
+        row = self.repository.get_transaction(session, transaction_id)
+        if row is None:
+            return None
+
+        transaction, filing = row
+        return TransactionDetailResponse(
+            id=str(transaction.id),
+            filing=FilingRecord(
+                id=str(filing.id),
+                external_id=filing.external_id,
+                filer_name=filing.filer_name,
+                filer_title=filing.filer_title,
+                agency=filing.agency,
+                filing_date=filing.filing_date,
+                report_period_start=filing.report_period_start,
+                report_period_end=filing.report_period_end,
+                source_page_url=filing.source_page_url,
+                source_pdf_url=filing.source_pdf_url,
+                ingest_status=filing.ingest_status,
+                transaction_count=None,
+            ),
+            transaction=TransactionRecord(
+                row_number=transaction.row_number,
+                description=transaction.description,
+                issuer_name=transaction.issuer_name,
+                trade_type=transaction.trade_type,
+                trade_type_raw=transaction.trade_type_raw,
+                transaction_date=transaction.transaction_date,
+                transaction_date_raw=transaction.transaction_date_raw,
+                amount_text=transaction.amount_text,
+                amount_min=transaction.amount_min,
+                amount_max=transaction.amount_max,
+                raw_text=transaction.raw_text,
+                confidence_score=float(transaction.confidence_score) if transaction.confidence_score is not None else None,
+            ),
+        )
+

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Literal
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import db_session_dependency
-from app.schemas.transactions import TransactionListResponse
+from app.schemas.transactions import TransactionDetailResponse, TransactionListResponse
 from app.services.transactions import TransactionListQuery, TransactionService
 
 
@@ -50,3 +51,12 @@ def list_transactions(
         order=order,
     )
     return service.list_transactions(session, query)
+
+
+@router.get("/transactions/{transaction_id}", response_model=TransactionDetailResponse)
+def get_transaction(transaction_id: UUID, session: Session = Depends(db_session_dependency)) -> TransactionDetailResponse:
+    transaction = service.get_transaction(session, str(transaction_id))
+    if transaction is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    return transaction
+

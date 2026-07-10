@@ -354,6 +354,27 @@ Response:
 }
 ```
 
+### `GET /api/v1/filings/{filing_id}`
+
+Response:
+
+```json
+{
+  "id": "fil_01JZEXAMPLE4X6Y8Z1A2B3C4",
+  "external_id": "oge:2026-05-12:jane-doe:278t",
+  "filer_name": "Jane Doe",
+  "filer_title": "Representative",
+  "agency": "House of Representatives",
+  "filing_date": "2026-05-12",
+  "report_period_start": null,
+  "report_period_end": null,
+  "source_page_url": "https://www.oge.gov/...",
+  "source_pdf_url": "https://www.oge.gov/example.pdf",
+  "ingest_status": "completed",
+  "transaction_count": 8
+}
+```
+
 ### `POST /api/v1/ingest/run`
 
 Purpose:
