@@ -67,20 +67,23 @@ Responsibilities:
 
 ```text
 oge.gl/
-  api/
-  scraper/
-  web/
+  app/
+  alembic/
+  tests/
+  frontend/
   fixtures/
   docs/
 ```
 
 Suggested additions within each project:
 
-- `api/app/`
-- `api/tests/`
-- `scraper/app/`
-- `scraper/tests/`
-- `web/src/`
+- `app/api/`
+- `app/core/`
+- `app/services/`
+- `tests/api/`
+- `tests/scraper/`
+- `frontend/src/`
+- `frontend/tests/`
 - `fixtures/pdfs/`
 
 ## Environment Requirements
@@ -206,7 +209,7 @@ Recommended workflow:
 2. run database migrations
 3. run scraper against a small fixture or a limited live batch
 4. start the API service
-5. start the web app
+5. start the frontend app
 6. validate search and source PDF links in the browser
 
 ### API Startup Commands
@@ -214,7 +217,7 @@ Recommended workflow:
 Example local API startup flow:
 
 ```bash
-cd api
+cd /path/to/oge.gl
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
@@ -228,13 +231,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Example local scraper setup flow:
 
 ```bash
-cd scraper
+cd /path/to/oge.gl
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
 ```
 
-The scraper setup keeps execution programmatic while the ingestion workflow remains partially implemented.
+The shared backend package keeps API, worker, and scraper execution programmatic while the ingestion workflow remains partially implemented.
 
 ## Deployment Considerations
 
@@ -247,7 +250,7 @@ Initial deployment should prioritize:
 A simple early deployment model is:
 
 - one API service
-- one web frontend
+- one frontend application
 - one scheduled or continuously polling worker service for queued ingestion execution
 - one PostgreSQL database
 

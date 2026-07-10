@@ -1,4 +1,4 @@
-# oge.gl Web Client
+# oge.gl Frontend
 
 This directory is reserved for the React frontend described in the repository documentation.
 

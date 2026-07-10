@@ -28,4 +28,4 @@ app = "oge-gl-api"
     path = "/api/v1/health"
 
 [deploy]
-  release_command = "cd /app/api && alembic upgrade head"
+  release_command = "cd /app && alembic upgrade head"

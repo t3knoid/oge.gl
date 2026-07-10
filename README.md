@@ -4,6 +4,8 @@
 
 The detailed product and development documentation lives under [docs/](docs/).
 
+The repository keeps backend Python components in [app/](app), Alembic migrations in [alembic/](alembic), pytest suites in [tests/](tests), and frontend assets in [frontend/](frontend).
+
 ## Documentation
 
 - [Product specification](docs/product-specification.md)

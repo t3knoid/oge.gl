@@ -7,16 +7,19 @@ WORKDIR /app
 
 RUN adduser --disabled-password --gecos "" appuser
 
-COPY api /app/api
+COPY app /app/app
+COPY alembic /app/alembic
+COPY alembic.ini /app/alembic.ini
+COPY pyproject.toml /app/pyproject.toml
 
 RUN python -m pip install --upgrade pip \
-    && python -m pip install --no-cache-dir /app/api
+    && python -m pip install --no-cache-dir /app
 
 RUN mkdir -p /data/pdfs && chown -R appuser:appuser /app /data
 
 USER appuser
 
-WORKDIR /app/api
+WORKDIR /app
 
 EXPOSE 8000
 

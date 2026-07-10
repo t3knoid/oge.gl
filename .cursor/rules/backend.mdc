@@ -2,9 +2,8 @@
 description: "Backend oge.gl rules for scraper ingestion, FastAPI routes, services, persistence, provenance, normalization, and backend tests."
 alwaysApply: false
 globs:
-  - "api/**/*.py"
-  - "scraper/**/*.py"
-  - "**/tests/**/*.py"
+  - "app/**/*.py"
+  - "tests/**/*.py"
   - "alembic/**/*.py"
 ---
 

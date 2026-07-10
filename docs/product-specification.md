@@ -78,14 +78,14 @@ The project should be split into three layers:
 
 ```text
 oge.gl/
-  scraper/
-    app/
-    tests/
-  api/
-    app/
-    tests/
-  web/
+  app/
+  alembic/
+  tests/
+    api/
+    scraper/
+  frontend/
     src/
+    tests/
   fixtures/
     pdfs/
   docs/
@@ -93,9 +93,10 @@ oge.gl/
 
 Suggested ownership by directory:
 
-- `scraper/` contains source discovery, PDF download, parsing, normalization, and ingestion jobs
-- `api/` contains the HTTP service and database-facing query layer
-- `web/` contains the user-facing search interface
+- `app/` contains the backend application components, including API routes, services, workers, discovery, parsing, and infrastructure adapters
+- `alembic/` contains database migration files and environment configuration
+- `tests/` contains pytest coverage split by backend surface such as API and scraper behavior
+- `frontend/` contains the user-facing search interface and frontend test suites
 - `fixtures/pdfs/` contains sample 278-T filings used in tests
 - `docs/` can hold deeper parser notes and schema decisions if the project grows
 

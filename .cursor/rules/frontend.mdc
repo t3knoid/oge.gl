@@ -2,7 +2,7 @@
 description: "Frontend oge.gl rules for React UI work, accessibility, API usage, filter state, and frontend validation."
 alwaysApply: false
 globs:
-  - "web/**/*"
+  - "frontend/**/*"
 ---
 
 # oge.gl - Frontend Addendum

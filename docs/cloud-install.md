@@ -112,7 +112,8 @@ Recommended Fly launch choices for the API app:
 Current configuration expectations:
 
 - the repository root `Dockerfile` builds the API image
-- the repository root `fly.toml` defines both the public `app` process and the background `worker` process and runs migrations as a Fly release step
+- the repository root `fly.toml` defines both the public `app` process and the background `worker` process and runs migrations from the root `alembic/` setup as a Fly release step
+- the backend package lives under the repository root `app/` directory
 - the API container should listen on `0.0.0.0:8000`
 - the Fly release step should run `alembic upgrade head`
 - health checks should target the versioned API health route, `GET /api/v1/health`
