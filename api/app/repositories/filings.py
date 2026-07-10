@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,7 +16,7 @@ class FilingDetailResult:
 
 
 class FilingRepository:
-    def get_filing(self, session: Session, filing_id: str) -> FilingDetailResult | None:
+    def get_filing(self, session: Session, filing_id: UUID) -> FilingDetailResult | None:
         query = (
             select(Filing, func.count(Transaction.id))
             .outerjoin(Transaction, Transaction.filing_id == Filing.id)

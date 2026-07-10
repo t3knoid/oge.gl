@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from app.repositories.filings import FilingRepository
@@ -10,7 +12,7 @@ class FilingService:
     def __init__(self, repository: FilingRepository | None = None) -> None:
         self.repository = repository or FilingRepository()
 
-    def get_filing(self, session: Session, filing_id: str) -> FilingDetailResponse | None:
+    def get_filing(self, session: Session, filing_id: UUID) -> FilingDetailResponse | None:
         result = self.repository.get_filing(session, filing_id)
         if result is None:
             return None
