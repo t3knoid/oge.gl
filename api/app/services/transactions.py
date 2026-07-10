@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -83,7 +84,7 @@ class TransactionService:
             order=query.order,
         )
 
-    def get_transaction(self, session: Session, transaction_id: str) -> TransactionDetailResponse | None:
+    def get_transaction(self, session: Session, transaction_id: UUID) -> TransactionDetailResponse | None:
         row = self.repository.get_transaction(session, transaction_id)
         if row is None:
             return None

@@ -55,7 +55,7 @@ def list_transactions(
 
 @router.get("/transactions/{transaction_id}", response_model=TransactionDetailResponse)
 def get_transaction(transaction_id: UUID, session: Session = Depends(db_session_dependency)) -> TransactionDetailResponse:
-    transaction = service.get_transaction(session, str(transaction_id))
+    transaction = service.get_transaction(session, transaction_id)
     if transaction is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     return transaction

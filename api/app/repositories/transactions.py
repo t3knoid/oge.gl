@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from uuid import UUID
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
@@ -59,7 +60,7 @@ class TransactionRepository:
         ).all()
         return TransactionListResult(rows=rows, total=total)
 
-    def get_transaction(self, session: Session, transaction_id: str) -> tuple[Transaction, Filing] | None:
+    def get_transaction(self, session: Session, transaction_id: UUID) -> tuple[Transaction, Filing] | None:
         query = select(Transaction, Filing).join(Filing, Transaction.filing_id == Filing.id).where(Transaction.id == transaction_id)
         return session.execute(query).one_or_none()
 

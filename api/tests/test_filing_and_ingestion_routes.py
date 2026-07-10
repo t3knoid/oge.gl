@@ -91,6 +91,76 @@ def test_filing_detail_endpoint_reads_persisted_filing() -> None:
     assert payload["transaction_count"] == 1
 
 
+def test_transaction_detail_endpoint_reads_persisted_transaction() -> None:
+    session = _sqlite_session()
+    filing_id = uuid4()
+    transaction_id = uuid4()
+    session.add(
+        Filing(
+            id=filing_id,
+            external_id="oge:test-filing",
+            filer_name="Jane Doe",
+            filer_title="Representative",
+            agency="House of Representatives",
+            report_type="278T",
+            filing_date=date(2026, 5, 12),
+            source_page_url="https://www.oge.gov/example",
+            source_pdf_url="https://www.oge.gov/example.pdf",
+            source_pdf_sha256="a" * 64,
+            raw_metadata={},
+            ingest_status="completed",
+        )
+    )
+    session.add(
+        Transaction(
+            id=transaction_id,
+            filing_id=filing_id,
+            row_number=1,
+            description="Apple Inc.",
+            issuer_name="Apple Inc.",
+            trade_type="purchase",
+            trade_type_raw="Purchase",
+            transaction_date=date(2026, 5, 8),
+            transaction_date_raw="05/08/2026",
+            amount_text="$1,001 - $15,000",
+            amount_min=1001,
+            amount_max=15000,
+            raw_text="1 Apple Inc. Purchase 05/08/2026 $1,001 - $15,000",
+        )
+    )
+    session.commit()
+
+    client = _make_client(session)
+    try:
+        response = client.get(f"/api/v1/transactions/{transaction_id}")
+    finally:
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == str(transaction_id)
+    assert payload["filing"]["id"] == str(filing_id)
+    assert payload["filing"]["source_pdf_url"] == "https://www.oge.gov/example.pdf"
+    assert payload["transaction"]["description"] == "Apple Inc."
+    assert payload["transaction"]["raw_text"] == "1 Apple Inc. Purchase 05/08/2026 $1,001 - $15,000"
+
+
+def test_transaction_detail_endpoint_returns_404_for_missing_transaction() -> None:
+    session = _sqlite_session()
+    client = _make_client(session)
+    missing_id = uuid4()
+
+    try:
+        response = client.get(f"/api/v1/transactions/{missing_id}")
+    finally:
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Transaction not found"}
+
+
 def test_filing_detail_endpoint_returns_404_for_missing_filing() -> None:
     session = _sqlite_session()
     client = _make_client(session)
