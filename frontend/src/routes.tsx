@@ -258,10 +258,14 @@ function SearchRoute(): JSX.Element {
 
     try {
       const accepted = await runIngestion(manualIngestConfig.defaults);
-      const jobs = await getIngestionJobs();
-      const matchingJob = jobs.items.find((job) => job.id === accepted.job_id) ?? null;
+      try {
+        const jobs = await getIngestionJobs();
+        const matchingJob = jobs.items.find((job) => job.id === accepted.job_id) ?? null;
 
-      setIngestStatusMessage(formatIngestionStatusMessage(accepted.job_id, matchingJob));
+        setIngestStatusMessage(formatIngestionStatusMessage(accepted.job_id, matchingJob));
+      } catch {
+        setIngestStatusMessage(formatIngestionStatusMessage(accepted.job_id, null));
+      }
     } catch (requestError: unknown) {
       if (requestError instanceof ApiClientError) {
         setIngestError(requestError.message);

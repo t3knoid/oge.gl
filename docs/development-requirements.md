@@ -293,7 +293,7 @@ The frontend shell uses a centralized API client module for transactions list an
   2. Open `http://127.0.0.1:5173`.
   3. Confirm loading state appears on initial search fetch.
   4. Trigger the manual fetch control and confirm the UI shows accepted job feedback.
-  4. Apply a filter with no expected matches and confirm the empty state is visible.
+  5. Apply a filter with no expected matches and confirm the empty state is visible.
   5. Trigger a request failure condition and confirm the error state is user-readable.
   6. Apply combined search filters and confirm table results update.
   7. Verify the source PDF column links to backend-provided provenance URLs.

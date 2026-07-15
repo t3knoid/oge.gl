@@ -40,7 +40,7 @@ Use environment variables for secrets and environment-specific values instead of
 
 ### Frontend Manual Fetch Defaults
 
-The frontend manual fetch control uses Vite runtime configuration for default ingestion payload values.
+The frontend manual fetch control uses Vite build-time or dev-start configuration for default ingestion payload values.
 
 | Setting | Default | Type | Allowed values |
 | --- | --- | --- | --- |
@@ -49,6 +49,7 @@ The frontend manual fetch control uses Vite runtime configuration for default in
 
 If these values are absent, the frontend falls back to `mode=incremental` and `limit=1`.
 If either value is invalid, the UI does not submit a malformed ingestion request and instead shows a safe user-readable error.
+Update these values before starting the Vite dev server or building frontend assets so the generated client bundle reflects the intended defaults.
 
 ## Logging
 

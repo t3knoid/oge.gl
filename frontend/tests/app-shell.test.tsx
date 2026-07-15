@@ -470,6 +470,55 @@ describe("frontend shell routing", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/service is unavailable/i);
   });
 
+  it("keeps accepted manual fetch feedback when job lookup fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes("/transactions?") || url.endsWith("/transactions")) {
+          return buildTransactionsResponse(url);
+        }
+
+        if (url.includes("/ingest/run")) {
+          return new Response(
+            JSON.stringify({
+              job_id: "job-accepted-only",
+              status: "queued",
+              accepted_at: "2026-07-15T12:00:00Z",
+            }),
+            { status: 202, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        if (url.includes("/ingest/jobs")) {
+          return new Response(JSON.stringify({ detail: "hidden" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fetch latest transactions/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /Manual fetch accepted\. Job job-accepted-only was created and will appear in ingestion status\./i
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("renders a results table with source PDF provenance links", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>

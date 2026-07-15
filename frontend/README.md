@@ -42,6 +42,8 @@ Unsupported local verification path:
 - Default value: `1`.
 - Allowed values: positive integers.
 
+These `VITE_*` values are read when the Vite dev server starts or when frontend assets are built.
+
 Example:
 
 ```bash
