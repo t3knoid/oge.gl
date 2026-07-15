@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.repositories.ingestion_results import FilingUpsertInput, IngestionResultRepository, TransactionUpsertInput
@@ -53,6 +54,25 @@ class IngestionPersistenceService:
             try:
                 self._persist_filing_result(session, filing_result)
                 session.commit()
+            except IntegrityError:
+                session.rollback()
+                try:
+                    self._persist_filing_result(session, filing_result)
+                    session.commit()
+                except Exception as retry_exc:
+                    session.rollback()
+                    if not had_workflow_failure:
+                        error_count += 1
+                    issues.append(
+                        PersistenceIssue(
+                            code="persistence_failed",
+                            message=str(retry_exc),
+                            severity="error",
+                            external_id=filing_result.external_id,
+                            source_pdf_url=filing_result.source_pdf_url,
+                        )
+                    )
+                    continue
             except Exception as exc:
                 session.rollback()
                 if not had_workflow_failure:

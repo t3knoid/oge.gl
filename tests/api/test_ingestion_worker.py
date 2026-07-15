@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -94,6 +93,56 @@ class JobFinishFailingRepository(IngestionJobRepository):
         )
 
 
+class JobFinishIntegrityFailingRepository(IngestionJobRepository):
+    def __init__(self) -> None:
+        self.failed_once = False
+
+    def mark_job_finished(
+        self,
+        session: Session,
+        *,
+        job_id,
+        status: str,
+        discovered_count: int,
+        downloaded_count: int,
+        ingested_count: int,
+        warning_count: int,
+        error_count: int,
+        last_error_code: str | None = None,
+        last_error_message: str | None = None,
+    ):
+        if not self.failed_once:
+            self.failed_once = True
+            session.add(
+                Filing(
+                    external_id="oge:test-filing",
+                    filer_name="Duplicate",
+                    filer_title="Duplicate",
+                    agency="Duplicate",
+                    report_type="278T",
+                    filing_date=None,
+                    source_page_url="https://www.oge.gov/search",
+                    source_pdf_url="https://www.oge.gov/files/one.pdf",
+                    source_pdf_sha256="a" * 64,
+                    raw_metadata={},
+                    ingest_status="failed",
+                )
+            )
+            session.flush()
+        return super().mark_job_finished(
+            session,
+            job_id=job_id,
+            status=status,
+            discovered_count=discovered_count,
+            downloaded_count=downloaded_count,
+            ingested_count=ingested_count,
+            warning_count=warning_count,
+            error_count=error_count,
+            last_error_code=last_error_code,
+            last_error_message=last_error_message,
+        )
+
+
 class DuplicateInsertOnceRepository(IngestionResultRepository):
     def __init__(self) -> None:
         self.returned_miss_once = False
@@ -115,6 +164,23 @@ class DuplicateInsertOnceRepository(IngestionResultRepository):
             source_pdf_url=source_pdf_url,
             source_pdf_sha256=source_pdf_sha256,
         )
+
+
+class DuplicateTransactionOnceRepository(IngestionResultRepository):
+    def __init__(self) -> None:
+        self.failed_once = False
+
+    def replace_transactions(
+        self,
+        session: Session,
+        *,
+        filing_id,
+        transactions,
+    ) -> None:
+        if not self.failed_once:
+            self.failed_once = True
+            raise IntegrityError("duplicate transaction", params=None, orig=Exception("unique violation"))
+        return super().replace_transactions(session, filing_id=filing_id, transactions=transactions)
 
 
 def _successful_filing_result(*, with_warning: bool = True) -> FilingIngestionResult:
@@ -427,6 +493,57 @@ def test_worker_preserves_partial_counts_when_job_finalization_fails() -> None:
     session.close()
 
 
+def test_worker_rolls_back_failed_session_before_manual_job_fallback() -> None:
+    session = _sqlite_session()
+    job = IngestionJob(
+        job_type="incremental_ingest",
+        mode="incremental",
+        status="queued",
+        requested_at=datetime.now(),
+        force_reprocess=False,
+        source_filters={"type": "278 Transaction", "limit": 10},
+    )
+    session.add(job)
+    session.commit()
+
+    worker = IngestionWorkerService(
+        repository=JobFinishIntegrityFailingRepository(),
+        workflow_service=StubIngestionWorkflowService(
+            IngestionWorkflowResult(
+                discovered_count=1,
+                filing_results=[_successful_filing_result()],
+                skipped_missing_pdf_count=0,
+                failed_count=0,
+            )
+        ),
+    )
+
+    result = worker.run_next_job(session)
+
+    refreshed = session.get(IngestionJob, job.id)
+    events = list(session.scalars(select(IngestionJobEvent).where(IngestionJobEvent.job_id == job.id)))
+
+    assert result is not None
+    assert result.status == "failed"
+    assert result.discovered_count == 1
+    assert result.downloaded_count == 1
+    assert result.ingested_count == 1
+    assert result.warning_count == 1
+    assert result.error_count == 1
+
+    assert refreshed is not None
+    assert refreshed.status == "failed"
+    assert refreshed.discovered_count == 1
+    assert refreshed.downloaded_count == 1
+    assert refreshed.ingested_count == 1
+    assert refreshed.warning_count == 1
+    assert refreshed.error_count == 1
+    assert refreshed.last_error_code == "worker_execution_failed"
+    assert {event.event_type for event in events} == {"job_started", "job_failed", "filing_warning"}
+
+    session.close()
+
+
 def test_duplicate_filing_conflict_is_treated_as_idempotent_reload() -> None:
     session = _sqlite_session()
 
@@ -469,5 +586,50 @@ def test_duplicate_filing_conflict_is_treated_as_idempotent_reload() -> None:
     assert len(transactions) == 2
     assert filings[0].raw_metadata["position"] == "President"
     assert transactions[0].description == "Apple Inc."
+
+    session.close()
+
+
+def test_duplicate_transaction_conflict_is_retried_idempotently() -> None:
+    session = _sqlite_session()
+
+    existing_filing = Filing(
+        external_id="oge:test-filing",
+        filer_name="Trump, Donald J",
+        filer_title="President",
+        agency="White House Office",
+        report_type="278T",
+        filing_date=None,
+        source_page_url="https://www.oge.gov/search",
+        source_pdf_url="https://www.oge.gov/files/one.pdf",
+        source_pdf_sha256="a" * 64,
+        raw_metadata={"existing": True},
+        ingest_status="completed",
+    )
+    session.add(existing_filing)
+    session.commit()
+
+    summary = IngestionPersistenceService(repository=DuplicateTransactionOnceRepository()).persist_workflow_result(
+        session,
+        IngestionWorkflowResult(
+            discovered_count=1,
+            filing_results=[_successful_filing_result()],
+            skipped_missing_pdf_count=0,
+            failed_count=0,
+        ),
+    )
+
+    filings = list(session.scalars(select(Filing)))
+    transactions = list(session.scalars(select(Transaction).order_by(Transaction.row_number)))
+
+    assert summary.downloaded_count == 1
+    assert summary.ingested_count == 1
+    assert summary.warning_count == 1
+    assert summary.error_count == 0
+    assert summary.issues == []
+    assert len(filings) == 1
+    assert len(transactions) == 2
+    assert transactions[0].description == "Apple Inc."
+    assert transactions[1].raw_text == "2 Microsoft Corp. Sale Over $50,000,000"
 
     session.close()

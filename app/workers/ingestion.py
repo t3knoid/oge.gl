@@ -51,11 +51,12 @@ class IngestionWorkerService:
         if job is None:
             return None
 
+        job_id = job.id
         progress = _JobProgress()
 
         self.repository.add_event(
             session,
-            job_id=job.id,
+            job_id=job_id,
             event_type="job_started",
             severity="info",
             message="Started queued ingestion job.",
@@ -78,7 +79,7 @@ class IngestionWorkerService:
                 for warning in filing_result.warnings:
                     self.repository.add_event(
                         session,
-                        job_id=job.id,
+                        job_id=job_id,
                         event_type="filing_warning",
                         severity="warning",
                         message=warning.message,
@@ -93,7 +94,7 @@ class IngestionWorkerService:
                 if filing_result.failure is not None:
                     self.repository.add_event(
                         session,
-                        job_id=job.id,
+                        job_id=job_id,
                         event_type="filing_failed",
                         severity="error",
                         message=filing_result.failure.message,
@@ -108,7 +109,7 @@ class IngestionWorkerService:
             for issue in persistence_summary.issues:
                 self.repository.add_event(
                     session,
-                    job_id=job.id,
+                    job_id=job_id,
                     event_type="filing_persistence_failed",
                     severity=issue.severity,
                     message=issue.message,
@@ -127,7 +128,7 @@ class IngestionWorkerService:
 
             self.repository.mark_job_finished(
                 session,
-                job_id=job.id,
+                job_id=job_id,
                 status=status,
                 discovered_count=progress.discovered_count,
                 downloaded_count=progress.downloaded_count,
@@ -137,7 +138,7 @@ class IngestionWorkerService:
             )
             self.repository.add_event(
                 session,
-                job_id=job.id,
+                job_id=job_id,
                 event_type="job_finished",
                 severity="info",
                 message="Discovery execution finished for queued ingestion job.",
@@ -152,7 +153,7 @@ class IngestionWorkerService:
             )
             logger.info("ingestion_job_finished", extra={"job_id": str(job.id), "status": status})
             return WorkerRunResult(
-                job_id=job.id,
+                job_id=job_id,
                 status=status,
                 discovered_count=progress.discovered_count,
                 downloaded_count=progress.downloaded_count,
@@ -162,10 +163,11 @@ class IngestionWorkerService:
             )
         except Exception as exc:
             error_count = max(progress.error_count, 1)
+            session.rollback()
             try:
                 self.repository.mark_job_finished(
                     session,
-                    job_id=job.id,
+                    job_id=job_id,
                     status="failed",
                     discovered_count=progress.discovered_count,
                     downloaded_count=progress.downloaded_count,
@@ -176,7 +178,8 @@ class IngestionWorkerService:
                     last_error_message=str(exc),
                 )
             except Exception:
-                persisted_job = session.get(type(job), job.id)
+                session.rollback()
+                persisted_job = session.get(type(job), job_id)
                 if persisted_job is not None:
                     persisted_job.status = "failed"
                     persisted_job.finished_at = persisted_job.finished_at or job.started_at
@@ -190,7 +193,7 @@ class IngestionWorkerService:
                     session.commit()
             self.repository.add_event(
                 session,
-                job_id=job.id,
+                job_id=job_id,
                 event_type="job_failed",
                 severity="error",
                 message="Queued ingestion job failed during worker execution.",
@@ -198,7 +201,7 @@ class IngestionWorkerService:
             )
             logger.exception("ingestion_job_failed", extra={"job_id": str(job.id)})
             return WorkerRunResult(
-                job_id=job.id,
+                job_id=job_id,
                 status="failed",
                 discovered_count=progress.discovered_count,
                 downloaded_count=progress.downloaded_count,
