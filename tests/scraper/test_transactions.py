@@ -18,6 +18,45 @@ def test_parse_row_line_extracts_transaction_fields() -> None:
     assert row["amount_max"] == 15000
 
 
+def test_parse_row_line_normalizes_month_name_transaction_date() -> None:
+    row = parse_row_line("1 Apple Inc. purchase May 8, 2026 $1,001 - $15,000")
+
+    assert row is not None
+    assert row["transaction_date"] == "2026-05-08"
+    assert row["transaction_date_raw"] == "May 8, 2026"
+
+
+def test_parse_row_line_normalizes_dashed_transaction_date_with_spacing() -> None:
+    row = parse_row_line("1 Apple Inc. purchase 05 - 08 - 2026 $1,001 - $15,000")
+
+    assert row is not None
+    assert row["transaction_date"] == "2026-05-08"
+    assert row["transaction_date_raw"] == "05 - 08 - 2026"
+
+
+def test_parse_row_line_recovers_ocr_compact_date_and_noisy_amount_prefix() -> None:
+    row = parse_row_line(
+        "3075 GRIO OYNAMICS HLDGS INC CLASS A purchase 2126/2026 Yos $15 001 -$50,000"
+    )
+
+    assert row is not None
+    assert row["num"] == 3075
+    assert row["transaction_date"] == "2026-02-26"
+    assert row["transaction_date_raw"] == "2126/2026"
+    assert row["amount_text"] == "$15 001 -$50,000"
+    assert row["amount_min"] == 15001
+    assert row["amount_max"] == 50000
+
+
+def test_parse_row_line_drops_numeric_bounds_for_inverted_ocr_amount_range() -> None:
+    row = parse_row_line("2735 AMERICAN TOWER CORP NEW REIT sale 3/2812026 Vos $1,001-$15")
+
+    assert row is not None
+    assert row["amount_text"] == "$1,001-$15"
+    assert row["amount_min"] is None
+    assert row["amount_max"] is None
+
+
 def test_extract_rows_from_text_ignores_non_transaction_lines() -> None:
     text = "Header line\n1 Apple Inc. purchase\nFooter line\n2 Microsoft sale"
 
@@ -42,6 +81,16 @@ def test_parse_document_text_preserves_ambiguous_two_digit_years_as_raw_only() -
     assert len(parsed.transactions) == 1
     assert parsed.transactions[0].transaction_date is None
     assert parsed.transactions[0].transaction_date_raw == "05/08/26"
+    assert len(parsed.warnings) == 1
+    assert parsed.warnings[0].code == "ambiguous_transaction_date"
+
+
+def test_parse_document_text_flags_ambiguous_two_digit_year_with_dash_separator() -> None:
+    parsed = parse_document_text("1 Apple Inc. purchase 05-08-26 $1,001 - $15,000")
+
+    assert len(parsed.transactions) == 1
+    assert parsed.transactions[0].transaction_date is None
+    assert parsed.transactions[0].transaction_date_raw == "05-08-26"
     assert len(parsed.warnings) == 1
     assert parsed.warnings[0].code == "ambiguous_transaction_date"
 

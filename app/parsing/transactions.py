@@ -3,21 +3,22 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
 from app.core.config import settings
+from app.parsing.dates import OGE_DATE_TOKEN_PATTERN, normalize_oge_date
 
 
 ROW_RE = re.compile(
-    r"^\s*(\d+)\s+(.+?)\s+(purchase|sale|exchange|unsolicited|solicited|other)\b(?:\s+(\d{1,2}/\d{1,2}/\d{2,4}|\d{4}-\d{2}-\d{2}))?(?:\s+(.+))?$",
+    rf"^\s*(\d+)\s+(.+?)\s+(purchase|sale|exchange|unsolicited|solicited|other)\b(?:\s+({OGE_DATE_TOKEN_PATTERN}))?(?:\s+(.+))?$",
     re.I,
 )
 CANDIDATE_ROW_RE = re.compile(r"^\s*\d+\s+")
-AMOUNT_RANGE_RE = re.compile(r"^\$?([\d,]+)\s*-\s*\$?([\d,]+)$")
-AMOUNT_OVER_RE = re.compile(r"^Over\s+\$?([\d,]+)$", re.I)
-SLASH_DATE_WITH_TWO_DIGIT_YEAR_RE = re.compile(r"^\d{1,2}/\d{1,2}/\d{2}$")
+AMOUNT_RANGE_RE = re.compile(r"^\$?([\d,\s]+)\s*-\s*\$?([\d,\s]+)$")
+AMOUNT_OVER_RE = re.compile(r"^Over\s+\$?([\d,\s]+)$", re.I)
+AMOUNT_RANGE_SEARCH_RE = re.compile(r"\$?\s*\d[\d,\s]*\s*-\s*\$?\s*\d[\d,\s]*")
+AMOUNT_OVER_SEARCH_RE = re.compile(r"Over\s+\$?\s*\d[\d,\s]*", re.I)
 CONTINUATION_HINT_RE = re.compile(
     r"(purchase|sale|exchange|unsolicited|solicited|other|\$|\d{1,2}/\d{1,2}/\d{2,4}|\d{4}-\d{2}-\d{2}|owned|joint|spouse)",
     re.I,
@@ -56,18 +57,7 @@ class ParsedDocument:
 
 
 def _normalize_date(date_text: str | None) -> tuple[str | None, bool]:
-    if not date_text:
-        return None, False
-
-    if SLASH_DATE_WITH_TWO_DIGIT_YEAR_RE.match(date_text):
-        return None, True
-
-    for fmt in ("%m/%d/%Y", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(date_text, fmt).date().isoformat(), False
-        except ValueError:
-            continue
-    return None, False
+    return normalize_oge_date(date_text)
 
 
 def _normalize_amount(amount_text: str | None) -> tuple[str | None, int | None, int | None]:
@@ -78,15 +68,40 @@ def _normalize_amount(amount_text: str | None) -> tuple[str | None, int | None, 
     if not cleaned:
         return None, None, None
 
-    range_match = AMOUNT_RANGE_RE.match(cleaned)
+    candidate = _extract_amount_candidate(cleaned)
+    if candidate is None:
+        return cleaned, None, None
+
+    range_match = AMOUNT_RANGE_RE.match(candidate)
     if range_match:
-        return cleaned, int(range_match.group(1).replace(",", "")), int(range_match.group(2).replace(",", ""))
+        amount_min = _parse_amount_number(range_match.group(1))
+        amount_max = _parse_amount_number(range_match.group(2))
+        if amount_max < amount_min:
+            return candidate, None, None
+        return candidate, amount_min, amount_max
 
-    over_match = AMOUNT_OVER_RE.match(cleaned)
+    over_match = AMOUNT_OVER_RE.match(candidate)
     if over_match:
-        return cleaned, int(over_match.group(1).replace(",", "")), None
+        amount_min = _parse_amount_number(over_match.group(1))
+        return candidate, amount_min, None
 
-    return cleaned, None, None
+    return candidate, None, None
+
+
+def _extract_amount_candidate(value: str) -> str | None:
+    range_match = AMOUNT_RANGE_SEARCH_RE.search(value)
+    if range_match is not None:
+        return re.sub(r"\s+", " ", range_match.group(0)).strip()
+
+    over_match = AMOUNT_OVER_SEARCH_RE.search(value)
+    if over_match is not None:
+        return re.sub(r"\s+", " ", over_match.group(0)).strip()
+
+    return value
+
+
+def _parse_amount_number(value: str) -> int:
+    return int(value.replace(",", "").replace(" ", ""))
 
 
 def parse_row_line(line: str) -> dict | None:

@@ -79,6 +79,41 @@ class AmbiguousDateDiscoveryClient:
         ]
 
 
+class MonthNameDateDiscoveryClient:
+    def discover_transaction_filings(self) -> list[DiscoveryRecord]:
+        return [
+            DiscoveryRecord(
+                filing_date="Jul 1, 2026",
+                position="President",
+                type_label="278 Transaction",
+                filer_name="Trump, Donald J",
+                agency="White House Office",
+                level="n/a",
+                source_page_url="https://www.oge.gov/search",
+                source_pdf_url="https://www.oge.gov/files/one.pdf",
+            )
+        ]
+
+
+class BlankDateWithDatedUrlDiscoveryClient:
+    def discover_transaction_filings(self) -> list[DiscoveryRecord]:
+        return [
+            DiscoveryRecord(
+                filing_date="",
+                position="President",
+                type_label="278 Transaction",
+                filer_name="Trump, Donald J",
+                agency="White House Office",
+                level="n/a",
+                source_page_url="https://www.oge.gov/search",
+                source_pdf_url=(
+                    "https://extapps2.oge.gov/201/Presiden.nsf/PAS+Index/405E4EC4E27BE8D185258DF7002DD1C0/"
+                    "$FILE/Trump%2C%20Donald%20J.-05.08.2026-278T(2).pdf"
+                ),
+            )
+        ]
+
+
 class StubDiscoveryClient:
     def discover_transaction_filings(self) -> list[DiscoveryRecord]:
         return [
@@ -207,6 +242,41 @@ def test_workflow_preserves_ambiguous_filing_dates_without_normalizing() -> None
     assert filing_result.filing_date_raw == "07/01/26"
     assert len(filing_result.warnings) == 1
     assert filing_result.warnings[0].code == "ambiguous_filing_date"
+
+
+def test_workflow_normalizes_month_name_filing_dates() -> None:
+    service = IngestionWorkflowService(
+        discovery_client=MonthNameDateDiscoveryClient(),
+        pdf_downloader=StubPdfDownloader({"https://www.oge.gov/files/one.pdf": b"pdf-bytes"}),
+        pdf_parser=StubPdfParser(),
+    )
+
+    result = service.ingest_discovered_filings(limit=1)
+
+    filing_result = result.filing_results[0]
+    assert filing_result.filing_date == "2026-07-01"
+    assert filing_result.filing_date_raw == "Jul 1, 2026"
+    assert filing_result.warnings == []
+
+
+def test_workflow_derives_filing_date_from_source_pdf_url_when_discovery_date_missing() -> None:
+    source_pdf_url = (
+        "https://extapps2.oge.gov/201/Presiden.nsf/PAS+Index/405E4EC4E27BE8D185258DF7002DD1C0/"
+        "$FILE/Trump%2C%20Donald%20J.-05.08.2026-278T(2).pdf"
+    )
+    service = IngestionWorkflowService(
+        discovery_client=BlankDateWithDatedUrlDiscoveryClient(),
+        pdf_downloader=StubPdfDownloader({source_pdf_url: b"pdf-bytes"}),
+        pdf_parser=StubPdfParser(),
+    )
+
+    result = service.ingest_discovered_filings(limit=1)
+
+    filing_result = result.filing_results[0]
+    assert filing_result.filing_date == "2026-05-08"
+    assert filing_result.filing_date_raw == ""
+    assert filing_result.warnings
+    assert filing_result.warnings[0].code == "derived_filing_date"
 
 
 def test_pdf_downloader_rejects_non_canonical_source_urls_before_fetch() -> None:

@@ -4,9 +4,11 @@ import hashlib
 import re
 from dataclasses import dataclass
 from typing import Protocol
+from urllib.parse import unquote
 
 from app.discovery.models import DiscoveryRecord
 from app.infrastructure.pdf_downloads import PdfDownloader
+from app.parsing.dates import normalize_oge_date
 from app.parsing.transactions import ParseWarning, ParsedDocument, ParsedTransactionRow, parse_pdf_bytes
 
 
@@ -127,7 +129,10 @@ class IngestionWorkflowService:
         *,
         source_pdf_sha256: str | None = None,
     ) -> FilingIngestionResult:
-        filing_date, filing_date_warnings = self._normalize_filing_date(record.filing_date)
+        filing_date, filing_date_warnings = self._normalize_filing_date(
+            record.filing_date,
+            source_pdf_url=record.source_pdf_url,
+        )
         try:
             parsed_document = self.pdf_parser.parse_pdf_bytes(pdf_bytes)
         except Exception as exc:
@@ -190,7 +195,10 @@ class IngestionWorkflowService:
 
     def _ingest_record(self, record: DiscoveryRecord) -> FilingIngestionResult:
         source_pdf_url = record.source_pdf_url
-        filing_date, filing_date_warnings = self._normalize_filing_date(record.filing_date)
+        filing_date, filing_date_warnings = self._normalize_filing_date(
+            record.filing_date,
+            source_pdf_url=source_pdf_url,
+        )
         if not source_pdf_url:
             return FilingIngestionResult(
                 external_id=self._build_external_id(record),
@@ -259,10 +267,14 @@ class IngestionWorkflowService:
             raw_text=transaction.raw_text,
         )
 
-    def _normalize_filing_date(self, filing_date: str) -> tuple[str | None, list[WorkflowWarning]]:
-        from datetime import datetime
-
-        if re.match(r"^\d{1,2}/\d{1,2}/\d{2}$", filing_date):
+    def _normalize_filing_date(
+        self,
+        filing_date: str,
+        *,
+        source_pdf_url: str | None = None,
+    ) -> tuple[str | None, list[WorkflowWarning]]:
+        normalized_date, is_ambiguous = normalize_oge_date(filing_date)
+        if is_ambiguous:
             return None, [
                 WorkflowWarning(
                     code="ambiguous_filing_date",
@@ -271,12 +283,33 @@ class IngestionWorkflowService:
                 )
             ]
 
-        for fmt in ("%m/%d/%Y", "%Y-%m-%d"):
-            try:
-                return datetime.strptime(filing_date, fmt).date().isoformat(), []
-            except ValueError:
-                continue
+        if normalized_date is not None:
+            return normalized_date, []
+
+        derived_date = self._derive_filing_date_from_source_pdf_url(source_pdf_url)
+        if derived_date is not None:
+            return derived_date, [
+                WorkflowWarning(
+                    code="derived_filing_date",
+                    message="The filing date was derived from the source PDF URL because the discovery filing date was missing or invalid.",
+                    raw_text=source_pdf_url,
+                )
+            ]
+
         return None, []
+
+    def _derive_filing_date_from_source_pdf_url(self, source_pdf_url: str | None) -> str | None:
+        if not source_pdf_url:
+            return None
+
+        decoded = unquote(source_pdf_url)
+        date_tokens = re.findall(r"\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{2,4}", decoded)
+        for token in reversed(date_tokens):
+            normalized_date, is_ambiguous = normalize_oge_date(token)
+            if normalized_date is not None and not is_ambiguous:
+                return normalized_date
+
+        return None
 
 
 class _DefaultPdfParser:
