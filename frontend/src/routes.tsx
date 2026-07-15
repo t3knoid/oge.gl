@@ -112,9 +112,16 @@ function TransactionDetailRoute(): JSX.Element {
           return;
         }
         setTransaction(transactionResponse);
-        const filingResponse = await getFilingById(transactionResponse.filing.id);
-        if (isActive) {
-          setFiling(filingResponse);
+        try {
+          const filingResponse = await getFilingById(transactionResponse.filing.id);
+          if (isActive) {
+            setFiling(filingResponse);
+          }
+        } catch {
+          if (isActive) {
+            // Keep transaction detail visible even when filing enrichment fails.
+            setFiling(null);
+          }
         }
       })
       .catch((requestError: unknown) => {
