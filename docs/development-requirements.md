@@ -297,6 +297,16 @@ npm run build
 npm run audit
 ```
 
+Baseline CI frontend verification command surface:
+
+```bash
+cd /path/to/oge.gl/frontend
+npm ci
+npm run lint
+npm run test
+npm run build
+```
+
 The frontend shell uses a centralized API client module for transactions list and detail requests plus filing detail requests. UI components call that module instead of issuing ad hoc `fetch` requests.
 
 ### Local Limitations And Troubleshooting

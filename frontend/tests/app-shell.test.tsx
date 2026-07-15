@@ -266,6 +266,35 @@ describe("frontend shell routing", () => {
     expect(await screen.findByText(/No transactions matched the active filters./i)).toBeInTheDocument();
   });
 
+  it("shows a safe error state when the transactions request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes("/transactions?") || url.endsWith("/transactions")) {
+          return new Response(JSON.stringify({ detail: "hidden" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/service is unavailable/i);
+  });
+
   it("renders a results table with source PDF provenance links", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
@@ -300,6 +329,61 @@ describe("frontend shell routing", () => {
       "https://example.com/page"
     );
     expect(screen.getByText(/Source PDF Provenance/i)).toBeInTheDocument();
+  });
+
+  it("shows a safe error state when transaction detail request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes(`/transactions/${mockTransactionId}`)) {
+          return new Response(JSON.stringify({ detail: "hidden" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            items: [],
+            page: 1,
+            page_size: 5,
+            total: 0,
+            has_more: false,
+            sort: "transaction_date",
+            order: "desc",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={[`/transactions/${mockTransactionId}`]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/requested resource was not found/i);
+  });
+
+  it("uses backend API endpoints and does not call source-site URLs", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("link", { name: /Jane Doe/i }));
+    await screen.findByText(/Transaction ID: example/i);
+
+    const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
+    expect(calledUrls.length).toBeGreaterThan(0);
+    for (const url of calledUrls) {
+      expect(url).toContain("/api/v1/");
+      expect(url).not.toContain("oge.gov/web/OGE.nsf");
+    }
   });
 
   it("keeps transaction detail visible when filing enrichment fails", async () => {

@@ -36,6 +36,17 @@ VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 - `npm run audit`: run a full dependency audit.
 - `npm run audit:prod`: run a production-dependency audit.
 
+## CI Baseline
+
+Use this command sequence for deterministic frontend checks in CI:
+
+```bash
+npm ci
+npm run lint
+npm run test
+npm run build
+```
+
 ## Scope Of This Slice
 
 - Provides API-driven search and transaction detail routes.
