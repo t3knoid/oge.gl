@@ -7,6 +7,8 @@ export {
 } from "./client";
 export type {
   FilingDetailResponse,
+  SortField,
+  SortOrder,
   TransactionDetailResponse,
   TransactionItem,
   TransactionListQuery,

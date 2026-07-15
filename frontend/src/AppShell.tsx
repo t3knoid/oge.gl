@@ -26,7 +26,7 @@ export function AppShell(): JSX.Element {
           API base URL: <code>{apiBaseUrl}</code>
         </p>
         <p>
-          Frontend routes consume backend APIs only. See <Link to="/">search placeholder</Link> for entry point.
+          Frontend routes consume backend APIs only. See <Link to="/">search filters</Link> for entry point.
         </p>
       </footer>
     </div>

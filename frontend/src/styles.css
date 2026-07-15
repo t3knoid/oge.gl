@@ -69,6 +69,56 @@ body {
   padding: 1rem;
 }
 
+.filters-form {
+  margin-top: 0.75rem;
+}
+
+.filters-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.filters-grid label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  color: #233549;
+}
+
+.filters-grid input,
+.filters-grid select {
+  border: 1px solid #c8d8e8;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  background: #ffffff;
+}
+
+.filters-actions {
+  margin-top: 0.85rem;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.filters-actions button,
+.pagination-actions button {
+  border: 1px solid #b8cce1;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  background: #f4f9ff;
+  color: #0f3557;
+  font: inherit;
+  cursor: pointer;
+}
+
+.filters-actions button:disabled,
+.pagination-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .state-grid {
   display: grid;
   gap: 0.75rem;
@@ -86,6 +136,12 @@ body {
 .state-card h3 {
   margin-top: 0;
   font-size: 1rem;
+}
+
+.pagination-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .site-footer {

@@ -281,7 +281,9 @@ cd /path/to/oge.gl/frontend
 VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 ```
 
-The frontend shell runs on Vite's default local address (`http://127.0.0.1:5173`) and provides baseline search and transaction-detail route placeholders for API-driven development.
+The frontend shell runs on Vite's default local address (`http://127.0.0.1:5173`) and provides API-driven search and transaction-detail routes.
+
+The search route exposes labeled controls for filer name, description, trade type, transaction date, date range, and amount filters. The route preserves filter, pagination, and sort state in the URL query string and maps those values to the backend transaction query parameters through the centralized API client.
 
 Use the frontend workspace scripts for local verification when frontend dependencies or routes change:
 
@@ -297,7 +299,12 @@ The frontend shell uses a centralized API client module for transactions list an
 
 ### Local Limitations And Troubleshooting
 
-- The frontend shell provides route and state placeholders only; full search controls and result rendering land in follow-up implementation slices.
+- Manual frontend verification path:
+  1. Start the API service and frontend shell.
+  2. Open `http://127.0.0.1:5173`.
+  3. Apply combined search filters and confirm results update.
+  4. Use reset filters and confirm the default query reloads.
+  5. Refresh the page and confirm URL query state restores the same filtered result view.
 - API and worker diagnostics are available in process logs from `uvicorn` and `python -m app.workers.runner`.
 - Run focused backend verification with `pytest -q tests/api/test_ingestion_worker.py tests/api/test_filing_and_ingestion_routes.py` when changing ingestion orchestration behavior.
 
