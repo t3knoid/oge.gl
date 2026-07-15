@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 
 from app.infrastructure.ingestion_execution import IngestionJobExecutionCoordinator
 from app.repositories.ingestion_jobs import CreateIngestionJobInput, IngestionJobRepository
-from app.schemas.ingestion_jobs import IngestionJobAcceptedResponse, IngestionJobItem, IngestionJobListResponse
+from app.schemas.ingestion_jobs import (
+    IngestionJobAcceptedResponse,
+    IngestionJobEventItem,
+    IngestionJobEventListResponse,
+    IngestionJobItem,
+    IngestionJobListResponse,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -55,6 +61,27 @@ class IngestionJobService:
                     error_count=job.error_count,
                 )
                 for job in jobs
+            ]
+        )
+
+    def list_job_events(self, session: Session, job_id: UUID) -> IngestionJobEventListResponse | None:
+        job = self.repository.get_job(session, job_id)
+        if job is None:
+            return None
+
+        events = self.repository.list_job_events(session, job_id=job_id)
+        return IngestionJobEventListResponse(
+            items=[
+                IngestionJobEventItem(
+                    id=str(event.id),
+                    job_id=str(event.job_id),
+                    event_type=event.event_type,
+                    severity=event.severity,
+                    message=event.message,
+                    event_metadata=event.event_metadata,
+                    created_at=event.created_at,
+                )
+                for event in events
             ]
         )
 

@@ -262,6 +262,81 @@ def test_ingestion_jobs_endpoint_lists_persisted_jobs() -> None:
     assert payload["items"][1]["status"] == "queued"
 
 
+def test_ingestion_job_events_endpoint_lists_events_for_job() -> None:
+    session = _sqlite_session()
+    job_id = uuid4()
+    first_event_id = uuid4()
+    second_event_id = uuid4()
+    session.add(
+        IngestionJob(
+            id=job_id,
+            job_type="incremental_ingest",
+            mode="incremental",
+            status="running",
+            requested_at=datetime(2026, 7, 9, 12, 0, 0),
+            started_at=datetime(2026, 7, 9, 12, 1, 0),
+            force_reprocess=False,
+            source_filters={"type": "278 Transaction", "limit": 5},
+            discovered_count=0,
+            downloaded_count=0,
+            ingested_count=0,
+            warning_count=0,
+            error_count=0,
+        )
+    )
+    session.add(
+        IngestionJobEvent(
+            id=second_event_id,
+            job_id=job_id,
+            event_type="job_finished",
+            severity="info",
+            message="Finished ingestion job.",
+            event_metadata={"ingested_count": 1},
+            created_at=datetime(2026, 7, 9, 12, 2, 0),
+        )
+    )
+    session.add(
+        IngestionJobEvent(
+            id=first_event_id,
+            job_id=job_id,
+            event_type="job_started",
+            severity="info",
+            message="Started ingestion job.",
+            event_metadata={"mode": "incremental"},
+            created_at=datetime(2026, 7, 9, 12, 1, 0),
+        )
+    )
+    session.commit()
+
+    client = _make_client(session)
+    try:
+        response = client.get(f"/api/v1/ingest/jobs/{job_id}/events")
+    finally:
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["id"] for item in payload["items"]] == [str(first_event_id), str(second_event_id)]
+    assert payload["items"][0]["event_type"] == "job_started"
+    assert payload["items"][1]["event_metadata"] == {"ingested_count": 1}
+
+
+def test_ingestion_job_events_endpoint_returns_404_for_missing_job() -> None:
+    session = _sqlite_session()
+    client = _make_client(session)
+    missing_job_id = uuid4()
+
+    try:
+        response = client.get(f"/api/v1/ingest/jobs/{missing_job_id}/events")
+    finally:
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Ingestion job not found"}
+
+
 def test_ingestion_run_endpoint_creates_queued_job() -> None:
     session = _sqlite_session()
     client = _make_client(session)

@@ -34,3 +34,17 @@ class IngestionJobItem(BaseModel):
 
 class IngestionJobListResponse(BaseModel):
     items: list[IngestionJobItem]
+
+
+class IngestionJobEventItem(BaseModel):
+    id: str
+    job_id: str
+    event_type: str
+    severity: str
+    message: str
+    event_metadata: dict
+    created_at: datetime
+
+
+class IngestionJobEventListResponse(BaseModel):
+    items: list[IngestionJobEventItem]

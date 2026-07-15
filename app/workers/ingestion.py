@@ -123,7 +123,7 @@ class IngestionWorkerService:
             warning_count = progress.warning_count
             error_count = progress.error_count
             status = "succeeded"
-            if warning_count > 0 or error_count > 0:
+            if error_count > 0:
                 status = "failed"
 
             self.repository.mark_job_finished(

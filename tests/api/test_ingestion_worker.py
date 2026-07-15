@@ -440,6 +440,46 @@ def test_worker_reingestion_keeps_persistence_idempotent() -> None:
     session.close()
 
 
+def test_worker_marks_warning_only_run_as_succeeded() -> None:
+    session = _sqlite_session()
+    job = IngestionJob(
+        job_type="incremental_ingest",
+        mode="incremental",
+        status="queued",
+        requested_at=datetime.now(),
+        force_reprocess=False,
+        source_filters={"type": "278 Transaction", "limit": 10},
+    )
+    session.add(job)
+    session.commit()
+
+    worker = IngestionWorkerService(
+        workflow_service=StubIngestionWorkflowService(
+            IngestionWorkflowResult(
+                discovered_count=1,
+                filing_results=[_successful_filing_result(with_warning=True)],
+                skipped_missing_pdf_count=0,
+                failed_count=0,
+            )
+        )
+    )
+
+    result = worker.run_next_job(session)
+    refreshed = session.get(IngestionJob, job.id)
+
+    assert result is not None
+    assert result.status == "succeeded"
+    assert result.warning_count == 1
+    assert result.error_count == 0
+
+    assert refreshed is not None
+    assert refreshed.status == "succeeded"
+    assert refreshed.warning_count == 1
+    assert refreshed.error_count == 0
+
+    session.close()
+
+
 def test_worker_preserves_partial_counts_when_job_finalization_fails() -> None:
     session = _sqlite_session()
     job = IngestionJob(

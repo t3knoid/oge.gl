@@ -23,6 +23,17 @@ class IngestionJobRepository:
     def list_jobs(self, session: Session) -> list[IngestionJob]:
         return list(session.scalars(select(IngestionJob).order_by(IngestionJob.requested_at.desc(), IngestionJob.id)))
 
+    def get_job(self, session: Session, job_id: UUID) -> IngestionJob | None:
+        return session.get(IngestionJob, job_id)
+
+    def list_job_events(self, session: Session, *, job_id: UUID) -> list[IngestionJobEvent]:
+        query = (
+            select(IngestionJobEvent)
+            .where(IngestionJobEvent.job_id == job_id)
+            .order_by(IngestionJobEvent.created_at, IngestionJobEvent.id)
+        )
+        return list(session.scalars(query))
+
     def _base_claim_query(self) -> Select[tuple[IngestionJob]]:
         return select(IngestionJob).where(IngestionJob.status == "queued").order_by(IngestionJob.requested_at, IngestionJob.id)
 
