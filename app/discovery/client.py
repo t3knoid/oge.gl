@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 from html.parser import HTMLParser
 import json
+import logging
 import re
 from urllib.parse import urljoin
 
@@ -15,6 +16,9 @@ from app.infrastructure.pdf_downloads import is_allowed_source_pdf_url
 DEFAULT_OGE_COLLECTION_URL = (
     "https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm"
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class _CollectionTableParser(HTMLParser):
@@ -106,9 +110,30 @@ class OgeDiscoveryClient:
             if api_url is None:
                 return records
 
-            api_response = client.get(api_url)
-            api_response.raise_for_status()
-            return self.parse_collection_json(api_response.text)
+            try:
+                api_response = client.get(api_url)
+                api_response.raise_for_status()
+            except httpx.HTTPError:
+                logger.warning(
+                    "discovery_json_fallback_request_failed",
+                    extra={
+                        "source_page_url": self.base_url,
+                        "json_api_url": api_url,
+                    },
+                )
+                return records
+
+            parsed_records = self.parse_collection_json(api_response.text)
+            if not parsed_records:
+                logger.warning(
+                    "discovery_json_fallback_empty_or_invalid_payload",
+                    extra={
+                        "source_page_url": self.base_url,
+                        "json_api_url": api_url,
+                    },
+                )
+                return records
+            return parsed_records
 
     def parse_collection_html(self, html: str) -> list[DiscoveryRecord]:
         parser = _CollectionTableParser()
@@ -149,7 +174,12 @@ class OgeDiscoveryClient:
         return records
 
     def parse_collection_json(self, payload: str) -> list[DiscoveryRecord]:
-        parsed = json.loads(payload)
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError:
+            logger.warning("discovery_json_payload_invalid")
+            return []
+
         items = parsed.get("data") if isinstance(parsed, dict) else None
         if not isinstance(items, list):
             return []
@@ -164,9 +194,10 @@ class OgeDiscoveryClient:
                 continue
 
             source_pdf_url = None
-            href_match = re.search(r"href='([^']+)'", type_label)
+            decoded_type_label = html.unescape(type_label)
+            href_match = re.search(r"href\s*=\s*([\"'])([^\"']+)\1", decoded_type_label, re.IGNORECASE)
             if href_match is not None:
-                resolved_source_pdf_url = urljoin(self.base_url, href_match.group(1))
+                resolved_source_pdf_url = urljoin(self.base_url, href_match.group(2))
                 if is_allowed_source_pdf_url(resolved_source_pdf_url) and self._is_direct_pdf_url(resolved_source_pdf_url):
                     source_pdf_url = resolved_source_pdf_url
 

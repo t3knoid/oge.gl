@@ -5,12 +5,14 @@ from datetime import UTC, datetime
 import json
 import logging
 from pathlib import Path
+import re
 import sys
 from typing import Any
 from typing import TextIO
 
 
 _REQUEST_ID: ContextVar[str | None] = ContextVar("request_id", default=None)
+_REQUEST_ID_SANITIZE_RE = re.compile(r"[^A-Za-z0-9._:-]+")
 
 
 _RESERVED_LOG_RECORD_FIELDS = {
@@ -90,6 +92,16 @@ def reset_request_id(token: Token[str | None]) -> None:
     _REQUEST_ID.reset(token)
 
 
+def sanitize_request_id(raw_request_id: str | None, *, max_length: int = 128) -> str | None:
+    if raw_request_id is None:
+        return None
+
+    normalized = _REQUEST_ID_SANITIZE_RE.sub("", raw_request_id.strip())
+    if not normalized:
+        return None
+    return normalized[:max_length]
+
+
 def _resolve_log_format(*, log_format: str, runtime_environment: str) -> str:
     if log_format != "auto":
         return log_format
@@ -148,6 +160,16 @@ def configure_logging(
     if runtime_environment == "local":
         file_handler = _build_file_handler(log_file_path, formatter)
         root.addHandler(file_handler)
+        resolved_path = Path(getattr(file_handler, "baseFilename", log_file_path))
+        requested_path = Path(log_file_path)
+        if resolved_path != requested_path:
+            logging.getLogger(__name__).warning(
+                "local_log_file_fallback_path",
+                extra={
+                    "requested_path": str(requested_path),
+                    "resolved_path": str(resolved_path),
+                },
+            )
 
     # Route uvicorn logs through the same handler for a consistent output format.
     for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):

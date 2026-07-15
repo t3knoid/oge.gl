@@ -31,6 +31,7 @@ Discovery behavior:
 3. The value `278 Transaction` in the `Type` column is the clickable link target to the source PDF.
 4. The system should store both the result metadata and the resolved PDF URL.
 5. The system should avoid duplicate ingestion of the same filing by tracking a stable external identifier or canonical PDF URL.
+6. When table parsing yields no records, the scraper may use the OGE JSON API URL exposed by the page and should keep discovery deterministic if that JSON request fails or returns invalid payloads.
 
 ## Functional Requirements
 
@@ -337,6 +338,10 @@ If background dispatch fails after queueing, the accepted response still reflect
 #### `GET /ingest/jobs`
 
 Returns ingestion job status plus discovered, downloaded, ingested, warning, and error counts for each run. Observable job states are `queued`, `running`, `succeeded`, and `failed`.
+
+#### `GET /ingest/jobs/:id/events`
+
+Returns ingestion event records for one job in ascending event order. If the job does not exist, the endpoint returns `404` with a safe error response.
 
 ## Frontend Specification
 

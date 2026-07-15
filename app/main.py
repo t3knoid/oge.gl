@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.logging import configure_logging, reset_request_id, set_request_id
+from app.core.logging import configure_logging, reset_request_id, sanitize_request_id, set_request_id
 
 
 configure_logging(
@@ -35,7 +35,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def request_context_middleware(request: Request, call_next):
-    request_id = request.headers.get("x-request-id") or str(uuid4())
+    request_id = sanitize_request_id(request.headers.get("x-request-id")) or str(uuid4())
     token = set_request_id(request_id)
     try:
         response = await call_next(request)

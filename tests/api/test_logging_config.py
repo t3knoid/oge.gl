@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -51,6 +52,18 @@ def test_request_middleware_sets_request_id_and_logs_failed_request(caplog) -> N
     assert getattr(failed_records[-1], "status_code", None) == 404
 
 
+def test_request_middleware_sanitizes_request_id_header(caplog) -> None:
+    caplog.set_level(logging.WARNING)
+    client = TestClient(app)
+
+    response = client.get("/not-a-real-route", headers={"x-request-id": "bad\nvalue\t***"})
+
+    assert response.status_code == 404
+    failed_records = [record for record in caplog.records if record.getMessage() == "api_request_failed"]
+    assert failed_records
+    assert getattr(failed_records[-1], "request_id", None) == "badvalue"
+
+
 def test_configure_logging_writes_same_event_to_stream_and_file(tmp_path) -> None:
     stream = io.StringIO()
     log_file_path = tmp_path / "backend.log"
@@ -77,3 +90,40 @@ def test_configure_logging_writes_same_event_to_stream_and_file(tmp_path) -> Non
     assert file_payload["event"] == "api_request_failed"
     assert stream_payload["request_id"] == "req-sync-1"
     assert file_payload["request_id"] == "req-sync-1"
+
+
+def test_configure_logging_warns_when_local_file_path_falls_back(monkeypatch, tmp_path) -> None:
+    stream = io.StringIO()
+    calls: list[str] = []
+
+    class _FakeFileHandler(logging.Handler):
+        def __init__(self, filename: str) -> None:
+            super().__init__()
+            self.baseFilename = filename
+
+        def emit(self, record: logging.LogRecord) -> None:
+            return None
+
+    def _fake_file_handler(filename: str):
+        target = str(filename)
+        calls.append(target)
+        if len(calls) == 1:
+            raise OSError("permission denied")
+        return _FakeFileHandler(target)
+
+    monkeypatch.setattr("app.core.logging.logging.FileHandler", _fake_file_handler)
+
+    configure_logging(
+        level="INFO",
+        log_format="json",
+        runtime_environment="local",
+        log_file_path=str(tmp_path / "requested.log"),
+        stream=stream,
+    )
+
+    payloads = [json.loads(line) for line in stream.getvalue().strip().splitlines() if line.strip()]
+    fallback_records = [payload for payload in payloads if payload.get("event") == "local_log_file_fallback_path"]
+
+    assert fallback_records
+    assert fallback_records[-1]["requested_path"] == str(tmp_path / "requested.log")
+    assert fallback_records[-1]["resolved_path"] == str(Path("/tmp/oge.gl/backend.log"))

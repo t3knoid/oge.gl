@@ -148,6 +148,7 @@ The API should provide:
 - `GET /transactions/:id`
 - `GET /filings`
 - optional internal ingestion endpoints such as `POST /ingest/run`
+- optional internal ingestion status endpoint `GET /ingest/jobs/:id/events`
 
 Behavior requirements:
 
@@ -216,11 +217,12 @@ Backend logging behavior:
 - Log output format is configurable with `LOG_FORMAT`.
 - `LOG_FORMAT=auto` uses text logging in local runtime and JSON logging in non-local runtime.
 - Log verbosity is configurable with `LOG_LEVEL`.
-- Request identifiers are used as log correlation context.
+- Request identifiers are used as log correlation context after safe header normalization.
 - API request failures log structured context that includes request correlation identifiers.
 - Ingestion lifecycle logs include job-scoped context where available.
 - Row-level parser diagnostics emit debug logs only when `LOG_ENABLE_ROW_DEBUG=true` and `LOG_LEVEL=DEBUG`.
 - Local runtime writes logs to `LOG_FILE_PATH` (default `/var/log/oge.gl/backend.log`) and also emits equivalent events to process output for journal collectors.
+- If `LOG_FILE_PATH` is unavailable in local runtime, logging falls back to `/tmp/oge.gl/backend.log` and emits a warning event.
 
 ## Local Development Workflow
 

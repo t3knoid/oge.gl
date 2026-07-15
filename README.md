@@ -67,6 +67,7 @@ With the backend running, open the API docs at:
 The API and worker use centralized backend logging. `LOG_FORMAT=auto` defaults to text in local runtime and JSON in non-local runtime. Set `LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) and `LOG_FORMAT` (`auto`, `json`, `text`) as needed.
 
 Local runtime writes logs to `LOG_FILE_PATH` (default `/var/log/oge.gl/backend.log`) and also emits the same events to process output so journal collectors can read them.
+If `LOG_FILE_PATH` is unavailable in local runtime, logging falls back to `/tmp/oge.gl/backend.log` and emits a warning event.
 
 In a second terminal:
 
