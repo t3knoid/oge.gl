@@ -362,6 +362,7 @@ Required controls:
 - trade type dropdown or multi-select
 - transaction date picker or date range
 - amount bucket text input or select
+- manual fetch control for ingestion submission
 - reset filters action
 
 ### Results Table
@@ -385,6 +386,7 @@ Each row should also provide navigation to a transaction detail surface that inc
 2. Filtering should update results through the API only.
 3. Loading, empty, and error states should be explicit.
 4. URLs should preserve filter state when possible.
+5. The search page may submit a manual ingestion run through the API and should surface accepted or failed submission feedback without exposing unsafe backend details.
 
 ## Ingestion Workflow
 

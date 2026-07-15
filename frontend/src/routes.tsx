@@ -2,8 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Link, Navigate, Route, Routes, useParams, useSearchParams } from "react-router-dom";
 import { AppShell } from "./AppShell";
-import { ApiClientError, getFilingById, getTransactionById, getTransactions } from "./api";
-import type { FilingDetailResponse, SortField, SortOrder, TransactionDetailResponse, TransactionItem, TransactionListQuery } from "./api";
+import { ApiClientError, getFilingById, getIngestionJobs, getTransactionById, getTransactions, runIngestion } from "./api";
+import type {
+  FilingDetailResponse,
+  IngestionJobItem,
+  SortField,
+  SortOrder,
+  TransactionDetailResponse,
+  TransactionItem,
+  TransactionListQuery,
+} from "./api";
+import { manualIngestConfig } from "./config";
 
 const DEFAULT_PAGE_SIZE = 5;
 const DEFAULT_SORT: SortField = "transaction_date";
@@ -139,6 +148,14 @@ function toPagedSearchParams(searchParams: URLSearchParams, page: number): URLSe
   return params;
 }
 
+function formatIngestionStatusMessage(jobId: string, job: IngestionJobItem | null): string {
+  if (job === null) {
+    return `Manual fetch accepted. Job ${jobId} was created and will appear in ingestion status.`;
+  }
+
+  return `Manual fetch accepted. Job ${job.id} is ${job.status}.`;
+}
+
 function SearchRoute(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<SearchFilterFormState>(() => toFormState(searchParams));
@@ -150,6 +167,9 @@ function SearchRoute(): JSX.Element {
   const [order, setOrder] = useState<string>(DEFAULT_ORDER);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmittingIngest, setIsSubmittingIngest] = useState(false);
+  const [ingestStatusMessage, setIngestStatusMessage] = useState<string | null>(null);
+  const [ingestError, setIngestError] = useState<string | null>(null);
 
   const query = useMemo(() => toTransactionsQuery(searchParams), [searchParams]);
 
@@ -219,6 +239,38 @@ function SearchRoute(): JSX.Element {
       return;
     }
     setSearchParams(toPagedSearchParams(searchParams, nextPage));
+  };
+
+  const onManualFetch = async (): Promise<void> => {
+    if (isSubmittingIngest) {
+      return;
+    }
+
+    if (manualIngestConfig.error) {
+      setIngestError(manualIngestConfig.error);
+      setIngestStatusMessage(null);
+      return;
+    }
+
+    setIsSubmittingIngest(true);
+    setIngestError(null);
+    setIngestStatusMessage(null);
+
+    try {
+      const accepted = await runIngestion(manualIngestConfig.defaults);
+      const jobs = await getIngestionJobs();
+      const matchingJob = jobs.items.find((job) => job.id === accepted.job_id) ?? null;
+
+      setIngestStatusMessage(formatIngestionStatusMessage(accepted.job_id, matchingJob));
+    } catch (requestError: unknown) {
+      if (requestError instanceof ApiClientError) {
+        setIngestError(requestError.message);
+      } else {
+        setIngestError("Unable to start manual fetch.");
+      }
+    } finally {
+      setIsSubmittingIngest(false);
+    }
   };
 
   return (
@@ -319,7 +371,22 @@ function SearchRoute(): JSX.Element {
           <button type="button" onClick={onResetFilters}>
             Reset filters
           </button>
+          <button type="button" onClick={() => void onManualFetch()} disabled={isSubmittingIngest}>
+            {isSubmittingIngest ? "Fetching transactions..." : "Fetch latest transactions"}
+          </button>
         </div>
+
+        {ingestStatusMessage ? (
+          <p className="ingest-status-message" role="status" aria-live="polite">
+            {ingestStatusMessage}
+          </p>
+        ) : null}
+
+        {ingestError ? (
+          <p className="ingest-status-error" role="alert">
+            {ingestError}
+          </p>
+        ) : null}
       </form>
 
       <div className="state-grid" aria-label="State placeholders">

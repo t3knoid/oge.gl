@@ -102,6 +102,25 @@ body {
   flex-wrap: wrap;
 }
 
+.ingest-status-message,
+.ingest-status-error {
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+}
+
+.ingest-status-message {
+  background: #eef8f0;
+  border: 1px solid #c8e3cc;
+  color: #184826;
+}
+
+.ingest-status-error {
+  background: #fff4f2;
+  border: 1px solid #efcbc2;
+  color: #7c2f1d;
+}
+
 .filters-actions button,
 .pagination-actions button {
   border: 1px solid #b8cce1;

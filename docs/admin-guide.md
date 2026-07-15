@@ -38,6 +38,18 @@ Environment variables override matching config-file keys.
 
 Use environment variables for secrets and environment-specific values instead of committing secret values in config files.
 
+### Frontend Manual Fetch Defaults
+
+The frontend manual fetch control uses Vite runtime configuration for default ingestion payload values.
+
+| Setting | Default | Type | Allowed values |
+| --- | --- | --- | --- |
+| `VITE_INGEST_RUN_DEFAULT_MODE` | `incremental` | string | `incremental` |
+| `VITE_INGEST_RUN_DEFAULT_LIMIT` | `1` | integer string | positive integer |
+
+If these values are absent, the frontend falls back to `mode=incremental` and `limit=1`.
+If either value is invalid, the UI does not submit a malformed ingestion request and instead shows a safe user-readable error.
+
 ## Logging
 
 Backend logging behavior:
@@ -121,6 +133,15 @@ curl -sS "http://127.0.0.1:8000/api/v1/ingest/jobs"
 ```bash
 cd frontend
 npm install
+npm run dev
+```
+
+Optional frontend manual fetch defaults:
+
+```bash
+cd frontend
+VITE_INGEST_RUN_DEFAULT_MODE="incremental" \
+VITE_INGEST_RUN_DEFAULT_LIMIT="1" \
 npm run dev
 ```
 

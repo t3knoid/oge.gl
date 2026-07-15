@@ -73,6 +73,40 @@ beforeEach(() => {
         return buildTransactionsResponse(url);
       }
 
+      if (url.includes("/ingest/run")) {
+        return new Response(
+          JSON.stringify({
+            job_id: "job-123",
+            status: "queued",
+            accepted_at: "2026-07-15T12:00:00Z",
+          }),
+          { status: 202, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (url.includes("/ingest/jobs")) {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: "job-123",
+                job_type: "incremental_ingest",
+                status: "queued",
+                requested_at: "2026-07-15T12:00:00Z",
+                started_at: null,
+                finished_at: null,
+                discovered_count: 0,
+                downloaded_count: 0,
+                ingested_count: 0,
+                warning_count: 0,
+                error_count: 0,
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
       if (url.includes(`/transactions/${mockTransactionId}`)) {
         return new Response(
           JSON.stringify({
@@ -291,6 +325,147 @@ describe("frontend shell routing", () => {
         <AppRoutes />
       </MemoryRouter>
     );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/service is unavailable/i);
+  });
+
+  it("renders a manual fetch control on the search route", () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("button", { name: /Fetch latest transactions/i })).toBeInTheDocument();
+  });
+
+  it("submits a manual ingestion request and shows accepted status", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fetch latest transactions/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(/Job job-123 is queued/i);
+    });
+
+    const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
+    expect(calledUrls.some((url) => url.includes("/ingest/run"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/ingest/jobs"))).toBe(true);
+  });
+
+  it("disables the manual fetch control while request is pending", async () => {
+    const pendingFetch = { resolve: null as ((value: Response) => void) | null };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes("/ingest/run")) {
+          return new Promise<Response>((resolve) => {
+            pendingFetch.resolve = resolve;
+          });
+        }
+
+        if (url.includes("/ingest/jobs")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                items: [
+                  {
+                    id: "job-123",
+                    job_type: "incremental_ingest",
+                    status: "queued",
+                    requested_at: "2026-07-15T12:00:00Z",
+                    started_at: null,
+                    finished_at: null,
+                    discovered_count: 0,
+                    downloaded_count: 0,
+                    ingested_count: 0,
+                    warning_count: 0,
+                    error_count: 0,
+                  },
+                ],
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } }
+            )
+          );
+        }
+
+        if (url.includes("/transactions?") || url.endsWith("/transactions")) {
+          return Promise.resolve(buildTransactionsResponse(url));
+        }
+
+        return Promise.resolve(
+          new Response(JSON.stringify({ detail: "Not found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fetch latest transactions/i }));
+    expect(screen.getByRole("button", { name: /Fetching transactions/i })).toBeDisabled();
+
+    if (pendingFetch.resolve) {
+      pendingFetch.resolve(
+        new Response(
+          JSON.stringify({
+            job_id: "job-123",
+            status: "queued",
+            accepted_at: "2026-07-15T12:00:00Z",
+          }),
+          { status: 202, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Fetch latest transactions/i })).not.toBeDisabled();
+    });
+  });
+
+  it("shows a safe error state when manual ingestion submission fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes("/transactions?") || url.endsWith("/transactions")) {
+          return buildTransactionsResponse(url);
+        }
+
+        if (url.includes("/ingest/run")) {
+          return new Response(JSON.stringify({ detail: "hidden" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fetch latest transactions/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/service is unavailable/i);
   });

@@ -1,6 +1,9 @@
 import { apiBaseUrl } from "../config";
 import type {
   FilingDetailResponse,
+  IngestionJobListResponse,
+  IngestionRunAcceptedResponse,
+  IngestionRunRequest,
   TransactionDetailResponse,
   TransactionListQuery,
   TransactionListResponse,
@@ -105,4 +108,18 @@ export async function getTransactionById(transactionId: string): Promise<Transac
 
 export async function getFilingById(filingId: string): Promise<FilingDetailResponse> {
   return safeFetch<FilingDetailResponse>(`/filings/${filingId}`);
+}
+
+export async function runIngestion(request: IngestionRunRequest): Promise<IngestionRunAcceptedResponse> {
+  return safeFetch<IngestionRunAcceptedResponse>("/ingest/run", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+}
+
+export async function getIngestionJobs(): Promise<IngestionJobListResponse> {
+  return safeFetch<IngestionJobListResponse>("/ingest/jobs");
 }

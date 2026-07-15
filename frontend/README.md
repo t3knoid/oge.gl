@@ -19,12 +19,13 @@ The development server runs on the default Vite port (`http://127.0.0.1:5173`).
 ## Browser Verification
 
 1. Open `http://127.0.0.1:5173` and confirm an initial loading state appears.
-2. Apply a filter that returns no records and confirm the empty state message is shown.
-3. Apply combined filters and confirm the results table updates with backend data.
-4. Verify source PDF links in the results table open backend-provided provenance targets.
-5. Open a transaction detail route and confirm filing context plus source links render.
-6. Use reset filters and confirm the default query reloads.
-7. Refresh the page and confirm URL query parameters restore the same filtered view.
+2. Trigger the manual fetch control and confirm the UI reports accepted ingestion job status.
+3. Apply a filter that returns no records and confirm the empty state message is shown.
+4. Apply combined filters and confirm the results table updates with backend data.
+5. Verify source PDF links in the results table open backend-provided provenance targets.
+6. Open a transaction detail route and confirm filing context plus source links render.
+7. Use reset filters and confirm the default query reloads.
+8. Refresh the page and confirm URL query parameters restore the same filtered view.
 
 Unsupported local verification path:
 
@@ -34,11 +35,26 @@ Unsupported local verification path:
 
 - `VITE_API_BASE_URL` (string): backend API root URL.
 - Default value: `http://127.0.0.1:8000/api/v1`.
+- `VITE_INGEST_RUN_DEFAULT_MODE` (string): default manual fetch ingestion mode.
+- Default value: `incremental`.
+- Allowed values: `incremental`.
+- `VITE_INGEST_RUN_DEFAULT_LIMIT` (integer string): default manual fetch ingestion limit.
+- Default value: `1`.
+- Allowed values: positive integers.
 
 Example:
 
 ```bash
 VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
+```
+
+Manual fetch example:
+
+```bash
+VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" \
+VITE_INGEST_RUN_DEFAULT_MODE="incremental" \
+VITE_INGEST_RUN_DEFAULT_LIMIT="1" \
+npm run dev
 ```
 
 ## Available Scripts
@@ -71,6 +87,7 @@ npm run build
 - Renders transaction detail with filing context and provenance links from backend payload fields.
 - Preserves filter, pagination, and sort state in URL query params for deterministic refresh and navigation behavior.
 - Provides loading, empty, error, and paged result states for filtered queries.
+- Provides a manual fetch control that submits an ingestion run through the backend API and reports accepted or failed submission state.
 - Keeps business logic and scraping behavior out of the browser.
 
 ## API Client

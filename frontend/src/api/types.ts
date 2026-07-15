@@ -1,5 +1,6 @@
 export type SortField = "transaction_date" | "filing_date" | "filer_name" | "description" | "amount_min";
 export type SortOrder = "asc" | "desc";
+export type IngestionRunMode = "incremental";
 
 export interface TransactionListQuery {
   filer_name?: string;
@@ -64,6 +65,35 @@ export interface FilingRecord {
   source_pdf_url: string;
   ingest_status: string;
   transaction_count: number | null;
+}
+
+export interface IngestionRunRequest {
+  mode: IngestionRunMode;
+  limit: number;
+}
+
+export interface IngestionRunAcceptedResponse {
+  job_id: string;
+  status: string;
+  accepted_at: string;
+}
+
+export interface IngestionJobItem {
+  id: string;
+  job_type: string;
+  status: string;
+  requested_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  discovered_count: number;
+  downloaded_count: number;
+  ingested_count: number;
+  warning_count: number;
+  error_count: number;
+}
+
+export interface IngestionJobListResponse {
+  items: IngestionJobItem[];
 }
 
 export interface TransactionListResponse {

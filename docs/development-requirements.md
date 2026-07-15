@@ -260,6 +260,8 @@ The frontend shell runs on Vite's default local address (`http://127.0.0.1:5173`
 
 The search route exposes labeled controls for filer name, description, trade type, transaction date, date range, and amount filters. The route preserves filter, pagination, and sort state in the URL query string and maps those values to the backend transaction query parameters through the centralized API client.
 
+The search route also exposes a manual fetch control that submits `POST /api/v1/ingest/run` through the centralized API client using configurable frontend defaults for ingestion mode and limit.
+
 The results view renders an accessible transactions table with filer, description, trade type, transaction date, amount, filing date, and source PDF columns. The transaction detail route renders normalized transaction values plus filing context and provenance links returned by the backend.
 
 Use the frontend workspace scripts for local verification when frontend dependencies or routes change:
@@ -290,6 +292,7 @@ The frontend shell uses a centralized API client module for transactions list an
   1. Start the API service and frontend shell.
   2. Open `http://127.0.0.1:5173`.
   3. Confirm loading state appears on initial search fetch.
+  4. Trigger the manual fetch control and confirm the UI shows accepted job feedback.
   4. Apply a filter with no expected matches and confirm the empty state is visible.
   5. Trigger a request failure condition and confirm the error state is user-readable.
   6. Apply combined search filters and confirm table results update.

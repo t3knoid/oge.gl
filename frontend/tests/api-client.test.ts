@@ -3,10 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ApiClientError,
   getFilingById,
+  getIngestionJobs,
   getTransactionById,
   getTransactions,
+  runIngestion,
   serializeTransactionsQuery,
 } from "../src/api";
+import { resolveManualIngestDefaults } from "../src/config";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -126,6 +129,56 @@ describe("frontend api client", () => {
     expect(response.source_pdf_url).toBe("https://example.com/pdf");
   });
 
+  it("submits an ingestion run through the centralized client", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(init?.method).toBe("POST");
+        expect(init?.body).toBe(JSON.stringify({ mode: "incremental", limit: 1 }));
+        return jsonResponse({
+          job_id: "job-123",
+          status: "queued",
+          accepted_at: "2026-07-15T12:00:00Z",
+        }, 202);
+      })
+    );
+
+    const response = await runIngestion({ mode: "incremental", limit: 1 });
+
+    expect(response.job_id).toBe("job-123");
+    expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toContain("/ingest/run");
+  });
+
+  it("fetches ingestion jobs through the centralized client", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          items: [
+            {
+              id: "job-123",
+              job_type: "incremental_ingest",
+              status: "queued",
+              requested_at: "2026-07-15T12:00:00Z",
+              started_at: null,
+              finished_at: null,
+              discovered_count: 0,
+              downloaded_count: 0,
+              ingested_count: 0,
+              warning_count: 0,
+              error_count: 0,
+            },
+          ],
+        })
+      )
+    );
+
+    const response = await getIngestionJobs();
+
+    expect(response.items[0]?.id).toBe("job-123");
+    expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toContain("/ingest/jobs");
+  });
+
   it("maps non-2xx responses to safe typed errors", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ detail: "hidden" }, 404)));
 
@@ -172,5 +225,35 @@ describe("frontend api client", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.kind).toBe("http");
     expect(err.status).toBe(500);
+  });
+});
+
+describe("manual ingest config resolution", () => {
+  it("uses safe defaults when config is absent", () => {
+    expect(resolveManualIngestDefaults(undefined, undefined)).toEqual({
+      defaults: { mode: "incremental", limit: 1 },
+      error: null,
+    });
+  });
+
+  it("accepts valid configured defaults", () => {
+    expect(resolveManualIngestDefaults("incremental", "5")).toEqual({
+      defaults: { mode: "incremental", limit: 5 },
+      error: null,
+    });
+  });
+
+  it("rejects invalid configured mode safely", () => {
+    expect(resolveManualIngestDefaults("full", "1")).toEqual({
+      defaults: { mode: "incremental", limit: 1 },
+      error: "Manual fetch configuration is invalid. Set VITE_INGEST_RUN_DEFAULT_MODE to incremental.",
+    });
+  });
+
+  it("rejects invalid configured limit safely", () => {
+    expect(resolveManualIngestDefaults("incremental", "0")).toEqual({
+      defaults: { mode: "incremental", limit: 1 },
+      error: "Manual fetch configuration is invalid. Set VITE_INGEST_RUN_DEFAULT_LIMIT to a positive integer.",
+    });
   });
 });
