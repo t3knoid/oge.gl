@@ -55,6 +55,11 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+With the backend running, open the API docs at:
+
+- http://127.0.0.1:8000/docs (Swagger UI)
+- http://127.0.0.1:8000/openapi.json (OpenAPI schema)
+
 In a second terminal:
 
 ```bash
