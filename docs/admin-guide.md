@@ -18,23 +18,23 @@ Environment variables override matching config-file keys.
 
 ### Configuration Reference
 
-| Setting | Default | Type | Allowed values |
-| --- | --- | --- | --- |
-| `APP_NAME` (`app_name`) | `oge.gl API` | string | any non-empty string |
-| `APP_VERSION` (`app_version`) | `0.1.0` | string | semantic version string |
-| `API_V1_PREFIX` (`api_v1_prefix`) | `/api/v1` | string | path prefix string |
-| `DATABASE_URL` (`database_url`) | `postgresql+psycopg://postgres:postgres@localhost:5432/oge` | string | valid SQLAlchemy URL |
-| `OGE_BASE_URL` (`oge_base_url`) | OGE disclosures collection URL | string | valid absolute URL |
-| `SCRAPER_REQUEST_TIMEOUT` (`scraper_request_timeout`) | `30.0` | float | positive float |
-| `INGEST_WORKER_POLL_INTERVAL_SECONDS` (`ingest_worker_poll_interval_seconds`) | `15.0` | float | positive float |
-| `INGEST_WORKER_MAX_JOBS_PER_RUN` (`ingest_worker_max_jobs_per_run`) | `10` | integer | positive integer |
-| `RUNTIME_ENVIRONMENT` (`runtime_environment`) | `local` | enum | `local`, `non_local` |
-| `LOG_LEVEL` (`log_level`) | `INFO` | string | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
-| `LOG_FORMAT` (`log_format`) | `auto` | enum | `auto`, `json`, `text` |
-| `LOG_ENABLE_ROW_DEBUG` (`log_enable_row_debug`) | `false` | boolean | `true`, `false` |
-| `LOG_FILE_PATH` (`log_file_path`) | `/var/log/oge.gl/backend.log` | string | writable file path |
-| `CORS_ALLOW_ORIGINS` (`cors_allow_origins`) | `http://127.0.0.1:5173`, `http://localhost:5173` | list[string] | valid origin URLs |
-| `APP_CONFIG_FILE` | `config/default.toml` | string | readable TOML file path |
+| Setting                                                                           | Default                                                       | Type         | Allowed values                                            |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------ | --------------------------------------------------------- |
+| `APP_NAME` (`app_name`)                                                       | `oge.gl API`                                                | string       | any non-empty string                                      |
+| `APP_VERSION` (`app_version`)                                                 | `0.1.0`                                                     | string       | semantic version string                                   |
+| `API_V1_PREFIX` (`api_v1_prefix`)                                             | `/api/v1`                                                   | string       | path prefix string                                        |
+| `DATABASE_URL` (`database_url`)                                               | `postgresql+psycopg://postgres:postgres@localhost:5432/oge` | string       | valid SQLAlchemy URL                                      |
+| `OGE_BASE_URL` (`oge_base_url`)                                               | OGE disclosures collection URL                                | string       | valid absolute URL                                        |
+| `SCRAPER_REQUEST_TIMEOUT` (`scraper_request_timeout`)                         | `30.0`                                                      | float        | positive float                                            |
+| `INGEST_WORKER_POLL_INTERVAL_SECONDS` (`ingest_worker_poll_interval_seconds`) | `15.0`                                                      | float        | positive float                                            |
+| `INGEST_WORKER_MAX_JOBS_PER_RUN` (`ingest_worker_max_jobs_per_run`)           | `10`                                                        | integer      | positive integer                                          |
+| `RUNTIME_ENVIRONMENT` (`runtime_environment`)                                 | `local`                                                     | enum         | `local`, `non_local`                                  |
+| `LOG_LEVEL` (`log_level`)                                                     | `INFO`                                                      | string       | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
+| `LOG_FORMAT` (`log_format`)                                                   | `auto`                                                      | enum         | `auto`, `json`, `text`                              |
+| `LOG_ENABLE_ROW_DEBUG` (`log_enable_row_debug`)                               | `false`                                                     | boolean      | `true`, `false`                                       |
+| `LOG_FILE_PATH` (`log_file_path`)                                             | `/var/log/oge.gl/backend.log`                               | string       | writable file path                                        |
+| `CORS_ALLOW_ORIGINS` (`cors_allow_origins`)                                   | `http://127.0.0.1:5173`, `http://localhost:5173`          | list[string] | valid origin URLs                                         |
+| `APP_CONFIG_FILE`                                                               | `config/default.toml`                                       | string       | readable TOML file path                                   |
 
 Use environment variables for secrets and environment-specific values instead of committing secret values in config files.
 
