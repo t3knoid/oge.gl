@@ -6,6 +6,8 @@ This directory contains the runnable React and TypeScript frontend shell for loc
 
 Use Node.js 22+.
 
+Prerequisite: run database migrations, start the backend API, and seed at least one ingestion run by following the local ingestion workflow in [docs/development-requirements.md](../docs/development-requirements.md#local-development-workflow).
+
 ```bash
 cd frontend
 npm install
@@ -13,6 +15,19 @@ npm run dev
 ```
 
 The development server runs on the default Vite port (`http://127.0.0.1:5173`).
+
+## Browser Verification
+
+1. Open `http://127.0.0.1:5173` and confirm an initial loading state appears.
+2. Apply a filter that returns no records and confirm the empty state message is shown.
+3. Apply combined filters and confirm the results table updates with backend data.
+4. Verify source PDF links in the results table open backend-provided provenance targets.
+5. Open a transaction detail route and confirm filing context plus source links render.
+6. Use reset filters and confirm the default query reloads.
+7. Refresh the page and confirm URL query parameters restore the same filtered view.
+
+Unsupported local verification path:
+1. Running the frontend shell without a reachable backend API is not a supported end-to-end verification flow.
 
 ## Runtime Configuration
 

@@ -268,6 +268,8 @@ python -m app.workers.runner
 
 Use a separate terminal for the frontend shell.
 
+Complete the ingestion submission and verification commands in the API workflow section before browser verification so the UI has seeded transaction and filing data to display.
+
 ```bash
 cd /path/to/oge.gl/frontend
 npm install
@@ -314,11 +316,16 @@ The frontend shell uses a centralized API client module for transactions list an
 - Manual frontend verification path:
   1. Start the API service and frontend shell.
   2. Open `http://127.0.0.1:5173`.
-  3. Apply combined search filters and confirm table results update.
-  4. Verify the source PDF column links to backend-provided provenance URLs.
-  5. Open a transaction detail route and verify filing context plus source links render.
-  6. Use reset filters and confirm the default query reloads.
-  7. Refresh the page and confirm URL query state restores the same filtered result view.
+  3. Confirm loading state appears on initial search fetch.
+  4. Apply a filter with no expected matches and confirm the empty state is visible.
+  5. Trigger a request failure condition and confirm the error state is user-readable.
+  6. Apply combined search filters and confirm table results update.
+  7. Verify the source PDF column links to backend-provided provenance URLs.
+  8. Open a transaction detail route and verify filing context plus source links render.
+  9. Use reset filters and confirm the default query reloads.
+  10. Refresh the page and confirm URL query state restores the same filtered result view.
+- Unsupported local verification path:
+  1. Running the frontend shell without a reachable API is not a supported end-to-end verification flow.
 - API and worker diagnostics are available in process logs from `uvicorn` and `python -m app.workers.runner`.
 - Run focused backend verification with `pytest -q tests/api/test_ingestion_worker.py tests/api/test_filing_and_ingestion_routes.py` when changing ingestion orchestration behavior.
 
