@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     scraper_request_timeout: float = 30.0
     ingest_worker_poll_interval_seconds: float = 15.0
     ingest_worker_max_jobs_per_run: int = 10
+    cors_allow_origins: list[str] = [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    ]
 
     model_config = SettingsConfigDict(
         env_prefix="",
