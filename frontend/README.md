@@ -31,8 +31,10 @@ VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 - `npm run build`: typecheck and build production assets.
 - `npm run preview`: preview the production build locally.
 - `npm run typecheck`: run TypeScript checks.
-- `npm run lint`: run TypeScript-based lint gate.
+- `npm run lint`: run the typecheck gate (alias to `npm run typecheck`).
 - `npm run test`: run frontend smoke tests.
+- `npm run audit`: run a full dependency audit.
+- `npm run audit:prod`: run a production-dependency audit.
 
 ## Scope Of This Slice
 

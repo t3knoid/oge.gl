@@ -282,6 +282,16 @@ VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 
 The frontend shell runs on Vite's default local address (`http://127.0.0.1:5173`) and provides baseline search and transaction-detail route placeholders for API-driven development.
 
+Use the frontend workspace scripts for local verification when frontend dependencies or routes change:
+
+```bash
+cd /path/to/oge.gl/frontend
+npm run lint
+npm run test
+npm run build
+npm run audit
+```
+
 ### Local Limitations And Troubleshooting
 
 - The frontend shell provides route and state placeholders only; full search controls and result rendering land in follow-up implementation slices.

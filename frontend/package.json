@@ -8,8 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "lint": "npm run typecheck",
+    "test": "vitest run",
+    "audit": "npm audit --json",
+    "audit:prod": "npm audit --omit=dev --json"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -22,10 +24,10 @@
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^5.1.0",
     "jsdom": "^25.0.1",
     "typescript": "^5.7.2",
-    "vite": "^5.4.11",
-    "vitest": "^2.1.8"
+    "vite": "^7.1.2",
+    "vitest": "^4.1.0"
   }
 }
