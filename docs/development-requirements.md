@@ -170,6 +170,7 @@ The frontend should implement:
 - result rendering with pagination
 - loading, empty, and error states
 - direct links to source PDFs
+- centralized API client usage for transaction and filing requests
 
 The frontend should not contain any scraping logic.
 
@@ -291,6 +292,8 @@ npm run test
 npm run build
 npm run audit
 ```
+
+The frontend shell uses a centralized API client module for transactions list and detail requests plus filing detail requests. UI components call that module instead of issuing ad hoc `fetch` requests.
 
 ### Local Limitations And Troubleshooting
 

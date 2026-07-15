@@ -41,3 +41,8 @@ VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 - Provides route placeholders for search and transaction detail entry points.
 - Provides baseline loading, empty, and error placeholders for API-driven pages.
 - Keeps business logic and scraping behavior out of the browser.
+
+## API Client
+
+The frontend uses a centralized API client in `src/api/` for transactions list and detail calls plus filing detail calls.
+UI routes consume this shared client so query serialization and error handling stay consistent across components.
