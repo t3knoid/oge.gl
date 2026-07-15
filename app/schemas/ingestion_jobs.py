@@ -12,6 +12,12 @@ class IngestionRunRequest(BaseModel):
     source_filters: dict | None = None
 
 
+class ManualIngestDefaultsResponse(BaseModel):
+    mode: str
+    limit: int
+    max_limit: int
+
+
 class IngestionJobAcceptedResponse(BaseModel):
     job_id: str
     status: str

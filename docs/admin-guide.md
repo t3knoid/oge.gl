@@ -40,16 +40,17 @@ Use environment variables for secrets and environment-specific values instead of
 
 ### Frontend Manual Fetch Defaults
 
-The frontend manual fetch control uses Vite build-time or dev-start configuration for default ingestion payload values.
+The frontend manual fetch control uses backend-owned configuration values exposed through the ingestion API.
 
 | Setting | Default | Type | Allowed values |
 | --- | --- | --- | --- |
-| `VITE_INGEST_RUN_DEFAULT_MODE` | `incremental` | string | `incremental` |
-| `VITE_INGEST_RUN_DEFAULT_LIMIT` | `1` | integer string | positive integer |
+| `MANUAL_INGEST_DEFAULT_MODE` (`manual_ingest_default_mode`) | `incremental` | string | `incremental` |
+| `MANUAL_INGEST_DEFAULT_LIMIT` (`manual_ingest_default_limit`) | `1` | integer | integer from `1` to `25` |
+| `MANUAL_INGEST_MAX_LIMIT` (`manual_ingest_max_limit`) | `25` | integer | integer `>= 1` |
 
-If these values are absent, the frontend falls back to `mode=incremental` and `limit=1`.
-If either value is invalid, the UI does not submit a malformed ingestion request and instead shows a safe user-readable error.
-Update these values before starting the Vite dev server or building frontend assets so the generated client bundle reflects the intended defaults.
+The frontend reads the effective values through `GET /api/v1/ingest/defaults`.
+If backend configuration is invalid, startup should fail safely before the frontend receives a malformed defaults payload.
+If the defaults API surface is unavailable, the UI should fail safely without submitting a malformed ingestion request.
 
 ## Logging
 
@@ -137,13 +138,12 @@ npm install
 npm run dev
 ```
 
-Optional frontend manual fetch defaults:
+Optional backend overrides for manual fetch defaults:
 
 ```bash
-cd frontend
-VITE_INGEST_RUN_DEFAULT_MODE="incremental" \
-VITE_INGEST_RUN_DEFAULT_LIMIT="1" \
-npm run dev
+export MANUAL_INGEST_DEFAULT_MODE="incremental"
+export MANUAL_INGEST_DEFAULT_LIMIT="1"
+export MANUAL_INGEST_MAX_LIMIT="25"
 ```
 
 Open `http://127.0.0.1:5173` for UI verification.

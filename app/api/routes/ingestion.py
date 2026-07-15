@@ -6,17 +6,28 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import db_session_dependency
+from app.core.config import settings
 from app.schemas.ingestion_jobs import (
     IngestionJobAcceptedResponse,
     IngestionJobEventListResponse,
     IngestionJobListResponse,
     IngestionRunRequest,
+    ManualIngestDefaultsResponse,
 )
 from app.services.ingestion_jobs import IngestionJobService, IngestionRunCommand
 
 
 router = APIRouter()
 service = IngestionJobService()
+
+
+@router.get("/ingest/defaults", response_model=ManualIngestDefaultsResponse)
+def get_manual_ingest_defaults() -> ManualIngestDefaultsResponse:
+    return ManualIngestDefaultsResponse(
+        mode=settings.manual_ingest_default_mode,
+        limit=settings.manual_ingest_default_limit,
+        max_limit=settings.manual_ingest_max_limit,
+    )
 
 
 @router.get("/ingest/jobs", response_model=IngestionJobListResponse)

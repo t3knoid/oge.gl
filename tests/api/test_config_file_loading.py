@@ -22,6 +22,9 @@ def test_default_config_file_contains_required_keys() -> None:
         "scraper_request_timeout",
         "ingest_worker_poll_interval_seconds",
         "ingest_worker_max_jobs_per_run",
+        "manual_ingest_default_mode",
+        "manual_ingest_default_limit",
+        "manual_ingest_max_limit",
         "cors_allow_origins",
         "log_level",
     }
@@ -90,3 +93,8 @@ def test_api_and_worker_use_shared_settings_singleton() -> None:
     from app.workers import runner as runner_module
 
     assert main_module.settings is runner_module.settings
+
+
+def test_settings_validation_fails_when_manual_ingest_default_exceeds_max() -> None:
+    with pytest.raises(ValidationError):
+        Settings(manual_ingest_default_limit=26, manual_ingest_max_limit=25)

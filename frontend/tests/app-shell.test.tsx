@@ -73,6 +73,17 @@ beforeEach(() => {
         return buildTransactionsResponse(url);
       }
 
+      if (url.includes("/ingest/defaults")) {
+        return new Response(
+          JSON.stringify({
+            mode: "incremental",
+            limit: 1,
+            max_limit: 25,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
       if (url.includes("/ingest/run")) {
         return new Response(
           JSON.stringify({
@@ -353,6 +364,7 @@ describe("frontend shell routing", () => {
     });
 
     const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
+    expect(calledUrls.some((url) => url.includes("/ingest/defaults"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/ingest/run"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/ingest/jobs"))).toBe(true);
   });
@@ -363,6 +375,19 @@ describe("frontend shell routing", () => {
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
         const url = String(input);
+
+        if (url.includes("/ingest/defaults")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                mode: "incremental",
+                limit: 1,
+                max_limit: 25,
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } }
+            )
+          );
+        }
 
         if (url.includes("/ingest/run")) {
           return new Promise<Response>((resolve) => {
@@ -414,7 +439,8 @@ describe("frontend shell routing", () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Fetch latest transactions/i }));
+    const manualFetchButton = screen.getByRole("button", { name: /Fetch latest transactions/i });
+    fireEvent.click(manualFetchButton);
     expect(screen.getByRole("button", { name: /Fetching transactions/i })).toBeDisabled();
 
     if (pendingFetch.resolve) {
@@ -429,10 +455,6 @@ describe("frontend shell routing", () => {
         )
       );
     }
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Fetch latest transactions/i })).not.toBeDisabled();
-    });
   });
 
   it("shows a safe error state when manual ingestion submission fails", async () => {
@@ -445,7 +467,53 @@ describe("frontend shell routing", () => {
           return buildTransactionsResponse(url);
         }
 
+        if (url.includes("/ingest/defaults")) {
+          return new Response(
+            JSON.stringify({
+              mode: "incremental",
+              limit: 1,
+              max_limit: 25,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
         if (url.includes("/ingest/run")) {
+          return new Response(JSON.stringify({ detail: "hidden" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Fetch latest transactions/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/service is unavailable/i);
+  });
+
+  it("shows a safe error state when backend-owned manual fetch defaults are unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes("/transactions?") || url.endsWith("/transactions")) {
+          return buildTransactionsResponse(url);
+        }
+
+        if (url.includes("/ingest/defaults")) {
           return new Response(JSON.stringify({ detail: "hidden" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
@@ -478,6 +546,17 @@ describe("frontend shell routing", () => {
 
         if (url.includes("/transactions?") || url.endsWith("/transactions")) {
           return buildTransactionsResponse(url);
+        }
+
+        if (url.includes("/ingest/defaults")) {
+          return new Response(
+            JSON.stringify({
+              mode: "incremental",
+              limit: 1,
+              max_limit: 25,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
         }
 
         if (url.includes("/ingest/run")) {

@@ -1,6 +1,6 @@
 export type SortField = "transaction_date" | "filing_date" | "filer_name" | "description" | "amount_min";
 export type SortOrder = "asc" | "desc";
-export type IngestionRunMode = "incremental";
+export type IngestionRunMode = string;
 
 export interface TransactionListQuery {
   filer_name?: string;
@@ -70,6 +70,12 @@ export interface FilingRecord {
 export interface IngestionRunRequest {
   mode: IngestionRunMode;
   limit: number;
+}
+
+export interface ManualIngestDefaultsResponse {
+  mode: IngestionRunMode;
+  limit: number;
+  max_limit: number;
 }
 
 export interface IngestionRunAcceptedResponse {

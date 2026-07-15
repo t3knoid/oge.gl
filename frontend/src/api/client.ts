@@ -2,6 +2,7 @@ import { apiBaseUrl } from "../config";
 import type {
   FilingDetailResponse,
   IngestionJobListResponse,
+  ManualIngestDefaultsResponse,
   IngestionRunAcceptedResponse,
   IngestionRunRequest,
   TransactionDetailResponse,
@@ -122,4 +123,8 @@ export async function runIngestion(request: IngestionRunRequest): Promise<Ingest
 
 export async function getIngestionJobs(): Promise<IngestionJobListResponse> {
   return safeFetch<IngestionJobListResponse>("/ingest/jobs");
+}
+
+export async function getManualIngestDefaults(): Promise<ManualIngestDefaultsResponse> {
+  return safeFetch<ManualIngestDefaultsResponse>("/ingest/defaults");
 }

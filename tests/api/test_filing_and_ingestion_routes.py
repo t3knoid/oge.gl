@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.routes import ingestion as ingestion_routes
 from app.api.dependencies import db_session_dependency
+from app.core.config import settings
 from app.db.base import Base
 from app.db.models import Filing, IngestionJob, IngestionJobEvent, Transaction
 from app.main import app
@@ -260,6 +261,34 @@ def test_ingestion_jobs_endpoint_lists_persisted_jobs() -> None:
     assert payload["items"][0]["status"] == "succeeded"
     assert payload["items"][0]["warning_count"] == 1
     assert payload["items"][1]["status"] == "queued"
+
+
+def test_manual_ingest_defaults_endpoint_returns_backend_owned_defaults() -> None:
+    session = _sqlite_session()
+    client = _make_client(session)
+
+    original_mode = settings.manual_ingest_default_mode
+    original_limit = settings.manual_ingest_default_limit
+    original_max_limit = settings.manual_ingest_max_limit
+    settings.manual_ingest_default_mode = "incremental"
+    settings.manual_ingest_default_limit = 3
+    settings.manual_ingest_max_limit = 25
+
+    try:
+        response = client.get("/api/v1/ingest/defaults")
+    finally:
+        settings.manual_ingest_default_mode = original_mode
+        settings.manual_ingest_default_limit = original_limit
+        settings.manual_ingest_max_limit = original_max_limit
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "mode": "incremental",
+        "limit": 3,
+        "max_limit": 25,
+    }
 
 
 def test_ingestion_job_events_endpoint_lists_events_for_job() -> None:

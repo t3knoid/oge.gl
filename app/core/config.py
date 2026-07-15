@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
 
 
@@ -23,6 +24,9 @@ class Settings(BaseSettings):
     log_format: Literal["auto", "json", "text"] = "auto"
     log_enable_row_debug: bool = False
     log_file_path: str = "/var/log/oge.gl/backend.log"
+    manual_ingest_default_mode: Literal["incremental"] = "incremental"
+    manual_ingest_default_limit: int = Field(default=1, ge=1)
+    manual_ingest_max_limit: int = Field(default=25, ge=1)
     cors_allow_origins: list[str] = [
         "http://127.0.0.1:5173",
         "http://localhost:5173",
@@ -55,6 +59,12 @@ class Settings(BaseSettings):
 
         # Precedence: init kwargs > environment variables > config file > dotenv > file secrets
         return init_settings, env_settings, config_file_source, dotenv_settings, file_secret_settings
+
+    @model_validator(mode="after")
+    def validate_manual_ingest_defaults(self) -> "Settings":
+        if self.manual_ingest_default_limit > self.manual_ingest_max_limit:
+            raise ValueError("manual_ingest_default_limit must be less than or equal to manual_ingest_max_limit")
+        return self
 
 
 settings = Settings()

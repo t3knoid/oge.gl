@@ -35,14 +35,8 @@ Unsupported local verification path:
 
 - `VITE_API_BASE_URL` (string): backend API root URL.
 - Default value: `http://127.0.0.1:8000/api/v1`.
-- `VITE_INGEST_RUN_DEFAULT_MODE` (string): default manual fetch ingestion mode.
-- Default value: `incremental`.
-- Allowed values: `incremental`.
-- `VITE_INGEST_RUN_DEFAULT_LIMIT` (integer string): default manual fetch ingestion limit.
-- Default value: `1`.
-- Allowed values: positive integers.
 
-These `VITE_*` values are read when the Vite dev server starts or when frontend assets are built.
+Manual fetch defaults are backend-owned and are read by the frontend through `GET /api/v1/ingest/defaults`.
 
 Example:
 
@@ -50,12 +44,10 @@ Example:
 VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 ```
 
-Manual fetch example:
+Manual fetch prerequisite:
 
 ```bash
 VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" \
-VITE_INGEST_RUN_DEFAULT_MODE="incremental" \
-VITE_INGEST_RUN_DEFAULT_LIMIT="1" \
 npm run dev
 ```
 

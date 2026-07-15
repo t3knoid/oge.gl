@@ -343,6 +343,10 @@ Returns ingestion job status plus discovered, downloaded, ingested, warning, and
 
 Returns ingestion event records for one job in ascending event order. If the job does not exist, the endpoint returns `404` with a safe error response.
 
+#### `GET /ingest/defaults`
+
+Returns safe backend-owned defaults for the manual ingestion trigger, including the effective mode, default limit, and maximum allowed limit for frontend submission behavior.
+
 ## Frontend Specification
 
 ### Core Screens
@@ -387,6 +391,7 @@ Each row should also provide navigation to a transaction detail surface that inc
 3. Loading, empty, and error states should be explicit.
 4. URLs should preserve filter state when possible.
 5. The search page may submit a manual ingestion run through the API and should surface accepted or failed submission feedback without exposing unsafe backend details.
+6. The manual ingestion trigger may read effective backend-owned defaults through a safe API surface instead of hardcoding frontend-owned ingest values.
 
 ## Ingestion Workflow
 

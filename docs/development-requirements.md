@@ -124,6 +124,7 @@ The API should provide:
 - `GET /filings`
 - optional internal ingestion endpoints such as `POST /ingest/run`
 - optional internal ingestion status endpoint `GET /ingest/jobs/:id/events`
+- optional internal ingestion defaults endpoint `GET /ingest/defaults`
 
 Behavior requirements:
 
@@ -260,7 +261,7 @@ The frontend shell runs on Vite's default local address (`http://127.0.0.1:5173`
 
 The search route exposes labeled controls for filer name, description, trade type, transaction date, date range, and amount filters. The route preserves filter, pagination, and sort state in the URL query string and maps those values to the backend transaction query parameters through the centralized API client.
 
-The search route also exposes a manual fetch control that submits `POST /api/v1/ingest/run` through the centralized API client using configurable frontend defaults for ingestion mode and limit.
+The search route also exposes a manual fetch control that submits `POST /api/v1/ingest/run` through the centralized API client using backend-owned defaults exposed through `GET /api/v1/ingest/defaults`.
 
 The results view renders an accessible transactions table with filer, description, trade type, transaction date, amount, filing date, and source PDF columns. The transaction detail route renders normalized transaction values plus filing context and provenance links returned by the backend.
 
@@ -292,14 +293,15 @@ The frontend shell uses a centralized API client module for transactions list an
   1. Start the API service and frontend shell.
   2. Open `http://127.0.0.1:5173`.
   3. Confirm loading state appears on initial search fetch.
-  4. Trigger the manual fetch control and confirm the UI shows accepted job feedback.
-  5. Apply a filter with no expected matches and confirm the empty state is visible.
-  6. Trigger a request failure condition and confirm the error state is user-readable.
-  7. Apply combined search filters and confirm table results update.
-  8. Verify the source PDF column links to backend-provided provenance URLs.
-  9. Open a transaction detail route and verify filing context plus source links render.
-  10. Use reset filters and confirm the default query reloads.
-  11. Refresh the page and confirm URL query state restores the same filtered result view.
+  4. Trigger the manual fetch control and confirm the frontend reads backend-owned defaults before submission.
+  5. Confirm the UI shows accepted job feedback.
+  6. Apply a filter with no expected matches and confirm the empty state is visible.
+  7. Trigger a request failure condition and confirm the error state is user-readable.
+  8. Apply combined search filters and confirm table results update.
+  9. Verify the source PDF column links to backend-provided provenance URLs.
+  10. Open a transaction detail route and verify filing context plus source links render.
+  11. Use reset filters and confirm the default query reloads.
+  12. Refresh the page and confirm URL query state restores the same filtered result view.
 - Unsupported local verification path:
   1. Running the frontend shell without a reachable API is not a supported end-to-end verification flow.
 - API and worker diagnostics are available in process logs from `uvicorn` and `python -m app.workers.runner`.

@@ -2,17 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Link, Navigate, Route, Routes, useParams, useSearchParams } from "react-router-dom";
 import { AppShell } from "./AppShell";
-import { ApiClientError, getFilingById, getIngestionJobs, getTransactionById, getTransactions, runIngestion } from "./api";
+import {
+  ApiClientError,
+  getFilingById,
+  getIngestionJobs,
+  getManualIngestDefaults,
+  getTransactionById,
+  getTransactions,
+  runIngestion,
+} from "./api";
 import type {
   FilingDetailResponse,
   IngestionJobItem,
+  ManualIngestDefaultsResponse,
   SortField,
   SortOrder,
   TransactionDetailResponse,
   TransactionItem,
   TransactionListQuery,
 } from "./api";
-import { manualIngestConfig } from "./config";
 
 const DEFAULT_PAGE_SIZE = 5;
 const DEFAULT_SORT: SortField = "transaction_date";
@@ -156,6 +164,22 @@ function formatIngestionStatusMessage(jobId: string, job: IngestionJobItem | nul
   return `Manual fetch accepted. Job ${job.id} is ${job.status}.`;
 }
 
+function validateManualIngestDefaults(defaults: ManualIngestDefaultsResponse): string | null {
+  if (defaults.mode !== "incremental") {
+    return "Manual fetch configuration is unavailable. Please contact an administrator.";
+  }
+
+  if (!Number.isInteger(defaults.limit) || !Number.isInteger(defaults.max_limit)) {
+    return "Manual fetch configuration is unavailable. Please contact an administrator.";
+  }
+
+  if (defaults.limit < 1 || defaults.max_limit < 1 || defaults.limit > defaults.max_limit) {
+    return "Manual fetch configuration is unavailable. Please contact an administrator.";
+  }
+
+  return null;
+}
+
 function SearchRoute(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<SearchFilterFormState>(() => toFormState(searchParams));
@@ -246,18 +270,19 @@ function SearchRoute(): JSX.Element {
       return;
     }
 
-    if (manualIngestConfig.error) {
-      setIngestError(manualIngestConfig.error);
-      setIngestStatusMessage(null);
-      return;
-    }
-
     setIsSubmittingIngest(true);
     setIngestError(null);
     setIngestStatusMessage(null);
 
     try {
-      const accepted = await runIngestion(manualIngestConfig.defaults);
+      const defaults = await getManualIngestDefaults();
+      const configError = validateManualIngestDefaults(defaults);
+      if (configError) {
+        setIngestError(configError);
+        return;
+      }
+
+      const accepted = await runIngestion({ mode: defaults.mode, limit: defaults.limit });
       try {
         const jobs = await getIngestionJobs();
         const matchingJob = jobs.items.find((job) => job.id === accepted.job_id) ?? null;
