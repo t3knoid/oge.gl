@@ -79,6 +79,7 @@ Suggested additions within each project:
 
 - `app/api/`
 - `app/core/`
+- `config/`
 - `app/services/`
 - `tests/api/`
 - `tests/scraper/`
@@ -97,33 +98,7 @@ Suggested additions within each project:
 
 ### Environment Variables
 
-The implementation should support environment variables similar to:
-
-- `DATABASE_URL`
-- `OGE_BASE_URL`
-- `PDF_STORAGE_DIR`
-- `INGEST_BATCH_SIZE`
-- `LOG_LEVEL`
-
-Possible API-specific variables:
-
-- `API_HOST`
-- `API_PORT`
-- `CORS_ALLOWED_ORIGINS`
-
-Possible scraper-specific variables:
-
-- `SCRAPER_USER_AGENT`
-- `SCRAPER_REQUEST_TIMEOUT`
-- `SCRAPER_RETRY_LIMIT`
-
-Runtime logging variables:
-
-- `LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)
-- `LOG_FORMAT` (`auto`, `json`, or `text`)
-- `RUNTIME_ENVIRONMENT` (`local` or `non_local`)
-- `LOG_FILE_PATH` (default `/var/log/oge.gl/backend.log`)
-- `LOG_ENABLE_ROW_DEBUG` (`true` or `false`)
+Administrative configuration, logging settings, and full environment key reference are documented in [docs/admin-guide.md](./admin-guide.md).
 
 ## Database Requirements
 
@@ -196,33 +171,7 @@ Minimum expected test coverage:
 
 ## Logging and Observability
 
-The services should log:
-
-- discovered filings count
-- download failures
-- parse failures
-- normalization warnings
-- ingestion upsert counts
-- API request failures
-
-Useful additions if implemented:
-
-- ingestion job history
-- row-level extraction diagnostics
-- admin-only ingestion status endpoints
-
-Backend logging behavior:
-
-- API and worker processes use the same centralized logging configuration.
-- Log output format is configurable with `LOG_FORMAT`.
-- `LOG_FORMAT=auto` uses text logging in local runtime and JSON logging in non-local runtime.
-- Log verbosity is configurable with `LOG_LEVEL`.
-- Request identifiers are used as log correlation context after safe header normalization.
-- API request failures log structured context that includes request correlation identifiers.
-- Ingestion lifecycle logs include job-scoped context where available.
-- Row-level parser diagnostics emit debug logs only when `LOG_ENABLE_ROW_DEBUG=true` and `LOG_LEVEL=DEBUG`.
-- Local runtime writes logs to `LOG_FILE_PATH` (default `/var/log/oge.gl/backend.log`) and also emits equivalent events to process output for journal collectors.
-- If `LOG_FILE_PATH` is unavailable in local runtime, logging falls back to `/tmp/oge.gl/backend.log` and emits a warning event.
+Administrative logging configuration and operations details are documented in [docs/admin-guide.md](./admin-guide.md).
 
 ## Local Development Workflow
 
@@ -232,7 +181,7 @@ For end-user-oriented search and provenance usage steps, see [User Guide](./user
 
 1. start PostgreSQL
 2. prepare a Python environment and install dependencies
-3. export required environment values
+3. set runtime configuration as needed
 4. run database migrations
 5. start the API service
 6. submit an ingestion job through the API
@@ -248,16 +197,11 @@ cd /path/to/oge.gl
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
-export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/oge"
-export OGE_BASE_URL="https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm"
-export LOG_LEVEL="INFO"
-export LOG_FORMAT="auto"
-export RUNTIME_ENVIRONMENT="local"
-export LOG_FILE_PATH="/var/log/oge.gl/backend.log"
-export LOG_ENABLE_ROW_DEBUG="false"
 alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+Use [docs/admin-guide.md](./admin-guide.md) for runtime configuration values, logging controls, and deployment-specific overrides.
 
 ### Ingestion Submission And Verification Commands
 
@@ -362,36 +306,14 @@ The shared backend package keeps API, worker, and scraper execution programmatic
 
 ## Deployment Considerations
 
-Initial deployment should prioritize:
-
-- repeatable ingestion
-- low operational complexity
-- clear separation between public web traffic and ingestion jobs
-
-A simple early deployment model is:
-
-- one API service
-- one frontend application
-- one queued ingestion execution path that the API can trigger in-process with serialized background dispatch
-- one optional scheduled or continuously polling worker service for dedicated queued ingestion execution
-- one PostgreSQL database
-
-For the default managed cloud path on Fly.io and Supabase, see [docs/cloud-install.md](./cloud-install.md).
-
-That cloud path is the default documented deployment target, not a requirement that excludes native deployment. `oge.gl` can also run on a native host or another platform if the documented stack, migration flow, database requirements, and service boundaries are kept intact.
-
-The repository root includes these production API deployment artifacts:
-
-- `Dockerfile` for the public API image
-- `fly.toml` for Fly.io API deployment and release-time migrations
-- a worker process command for dedicated queued ingestion execution when a separate worker process is preferred
+Administrative deployment guidance is documented in [docs/admin-guide.md](./admin-guide.md).
 
 ## Documentation Expectations
 
 As implementation begins, add further documents under `docs/` for:
 
 - software design details including exact API schemas, schema constraints, migration strategy, ingestion workflow, deployment topology, and monitoring thresholds
-- cloud deployment steps for the supported managed hosting path
+- administrative operations and deployment procedures
 - parser edge cases
 - API examples
 - ingestion operations
