@@ -294,12 +294,12 @@ The frontend shell uses a centralized API client module for transactions list an
   3. Confirm loading state appears on initial search fetch.
   4. Trigger the manual fetch control and confirm the UI shows accepted job feedback.
   5. Apply a filter with no expected matches and confirm the empty state is visible.
-  5. Trigger a request failure condition and confirm the error state is user-readable.
-  6. Apply combined search filters and confirm table results update.
-  7. Verify the source PDF column links to backend-provided provenance URLs.
-  8. Open a transaction detail route and verify filing context plus source links render.
-  9. Use reset filters and confirm the default query reloads.
-  10. Refresh the page and confirm URL query state restores the same filtered result view.
+  6. Trigger a request failure condition and confirm the error state is user-readable.
+  7. Apply combined search filters and confirm table results update.
+  8. Verify the source PDF column links to backend-provided provenance URLs.
+  9. Open a transaction detail route and verify filing context plus source links render.
+  10. Use reset filters and confirm the default query reloads.
+  11. Refresh the page and confirm URL query state restores the same filtered result view.
 - Unsupported local verification path:
   1. Running the frontend shell without a reachable API is not a supported end-to-end verification flow.
 - API and worker diagnostics are available in process logs from `uvicorn` and `python -m app.workers.runner`.
