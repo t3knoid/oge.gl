@@ -27,6 +27,7 @@ The development server runs on the default Vite port (`http://127.0.0.1:5173`).
 7. Refresh the page and confirm URL query parameters restore the same filtered view.
 
 Unsupported local verification path:
+
 1. Running the frontend shell without a reachable backend API is not a supported end-to-end verification flow.
 
 ## Runtime Configuration
