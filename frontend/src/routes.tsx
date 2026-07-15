@@ -126,6 +126,12 @@ function createDefaultSearchParams(): URLSearchParams {
   return toSearchParams(defaults, 1);
 }
 
+function toPagedSearchParams(searchParams: URLSearchParams, page: number): URLSearchParams {
+  const params = new URLSearchParams(searchParams);
+  params.set("page", String(page));
+  return params;
+}
+
 function SearchRoute(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<SearchFilterFormState>(() => toFormState(searchParams));
@@ -205,7 +211,7 @@ function SearchRoute(): JSX.Element {
     if (nextPage < 1) {
       return;
     }
-    setSearchParams(toSearchParams(filters, nextPage));
+    setSearchParams(toPagedSearchParams(searchParams, nextPage));
   };
 
   return (

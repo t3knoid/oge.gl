@@ -235,6 +235,23 @@ describe("frontend shell routing", () => {
     });
   });
 
+  it("does not apply draft filter edits when paginating without submitting", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText(/Filer name/i), { target: { value: "DraftOnly" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Next page/i }));
+
+    await waitFor(() => {
+      const lastCall = String(vi.mocked(fetch).mock.calls.at(-1)?.[0] ?? "");
+      expect(lastCall).toContain("page=2");
+      expect(lastCall).not.toContain("filer_name=DraftOnly");
+    });
+  });
+
   it("shows an empty state for filtered query results", async () => {
     render(
       <MemoryRouter
