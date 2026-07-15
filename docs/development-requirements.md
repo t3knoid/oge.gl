@@ -251,7 +251,8 @@ A simple early deployment model is:
 
 - one API service
 - one frontend application
-- one scheduled or continuously polling worker service for queued ingestion execution
+- one queued ingestion execution path that the API can trigger in-process with serialized background dispatch
+- one optional scheduled or continuously polling worker service for dedicated queued ingestion execution
 - one PostgreSQL database
 
 For the default managed cloud path on Fly.io and Supabase, see [docs/cloud-install.md](./cloud-install.md).
@@ -262,7 +263,7 @@ The repository root includes these production API deployment artifacts:
 
 - `Dockerfile` for the public API image
 - `fly.toml` for Fly.io API deployment and release-time migrations
-- a worker process command for queued ingestion execution
+- a worker process command for dedicated queued ingestion execution when a separate worker process is preferred
 
 ## Documentation Expectations
 

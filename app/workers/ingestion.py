@@ -122,9 +122,9 @@ class IngestionWorkerService:
 
             warning_count = progress.warning_count
             error_count = progress.error_count
-            status = "completed"
+            status = "succeeded"
             if warning_count > 0 or error_count > 0:
-                status = "partial"
+                status = "failed"
 
             self.repository.mark_job_finished(
                 session,

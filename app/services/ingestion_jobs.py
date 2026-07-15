@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.infrastructure.ingestion_execution import IngestionJobExecutionCoordinator
 from app.repositories.ingestion_jobs import CreateIngestionJobInput, IngestionJobRepository
 from app.schemas.ingestion_jobs import IngestionJobAcceptedResponse, IngestionJobItem, IngestionJobListResponse
 
@@ -16,9 +19,19 @@ class IngestionRunCommand:
     source_filters: dict | None = None
 
 
+class IngestionJobExecutor(Protocol):
+    def submit_job(self, job_id: UUID) -> object:
+        ...
+
+
 class IngestionJobService:
-    def __init__(self, repository: IngestionJobRepository | None = None) -> None:
+    def __init__(
+        self,
+        repository: IngestionJobRepository | None = None,
+        executor: IngestionJobExecutor | None = None,
+    ) -> None:
         self.repository = repository or IngestionJobRepository()
+        self.executor = executor or IngestionJobExecutionCoordinator()
 
     def list_jobs(self, session: Session) -> IngestionJobListResponse:
         jobs = self.repository.list_jobs(session)
@@ -51,6 +64,7 @@ class IngestionJobService:
                 source_filters=command.source_filters or {"type": "278 Transaction", "limit": command.limit},
             ),
         )
+        self.executor.submit_job(job.id)
         return IngestionJobAcceptedResponse(
             job_id=str(job.id),
             status=job.status,

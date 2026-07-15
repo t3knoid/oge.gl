@@ -9,10 +9,38 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.api.routes import ingestion as ingestion_routes
 from app.api.dependencies import db_session_dependency
 from app.db.base import Base
 from app.db.models import Filing, IngestionJob, Transaction
 from app.main import app
+from app.services.ingestion_jobs import IngestionJobService
+
+
+class RecordingExecutionCoordinator:
+    def __init__(self) -> None:
+        self.submitted_job_ids: list[str] = []
+
+    def submit_job(self, job_id: object) -> None:
+        self.submitted_job_ids.append(str(job_id))
+
+
+class InlineExecutionCoordinator:
+    def __init__(self, session: Session, *, terminal_status: str, error_code: str | None = None) -> None:
+        self.session = session
+        self.terminal_status = terminal_status
+        self.error_code = error_code
+
+    def submit_job(self, job_id: object) -> None:
+        job = self.session.get(IngestionJob, job_id)
+        assert job is not None
+        job.status = "running"
+        job.started_at = datetime(2026, 7, 9, 12, 10, 0)
+        job.status = self.terminal_status
+        job.finished_at = datetime(2026, 7, 9, 12, 11, 0)
+        job.last_error_code = self.error_code
+        job.last_error_message = "Queued ingestion job failed during worker execution." if self.error_code else None
+        self.session.commit()
 
 
 def _sqlite_session() -> Session:
@@ -201,7 +229,7 @@ def test_ingestion_jobs_endpoint_lists_persisted_jobs() -> None:
             id=second_job_id,
             job_type="incremental_ingest",
             mode="incremental",
-            status="completed",
+            status="succeeded",
             requested_at=datetime(2026, 7, 9, 12, 5, 0),
             force_reprocess=False,
             source_filters={"type": "278 Transaction", "limit": 5},
@@ -224,7 +252,7 @@ def test_ingestion_jobs_endpoint_lists_persisted_jobs() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert [item["id"] for item in payload["items"]] == [str(second_job_id), str(first_job_id)]
-    assert payload["items"][0]["status"] == "completed"
+    assert payload["items"][0]["status"] == "succeeded"
     assert payload["items"][0]["warning_count"] == 1
     assert payload["items"][1]["status"] == "queued"
 
@@ -257,6 +285,94 @@ def test_ingestion_run_endpoint_creates_queued_job() -> None:
     assert created_job.mode == "incremental"
     assert created_job.force_reprocess is True
     assert created_job.source_filters == {"type": "278 Transaction", "agency": "House"}
+
+
+def test_ingestion_run_endpoint_triggers_execution_handoff(monkeypatch) -> None:
+    session = _sqlite_session()
+    client = _make_client(session)
+    coordinator = RecordingExecutionCoordinator()
+    original_service = ingestion_routes.service
+    monkeypatch.setattr(ingestion_routes, "service", IngestionJobService(executor=coordinator))
+
+    try:
+        response = client.post(
+            "/api/v1/ingest/run",
+            json={
+                "mode": "incremental",
+                "limit": 2,
+            },
+        )
+    finally:
+        monkeypatch.setattr(ingestion_routes, "service", original_service)
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert coordinator.submitted_job_ids == [payload["job_id"]]
+
+
+def test_ingestion_run_endpoint_surfaces_succeeded_job_status_after_execution(monkeypatch) -> None:
+    session = _sqlite_session()
+    client = _make_client(session)
+    coordinator = InlineExecutionCoordinator(session, terminal_status="succeeded")
+    original_service = ingestion_routes.service
+    monkeypatch.setattr(ingestion_routes, "service", IngestionJobService(executor=coordinator))
+
+    try:
+        create_response = client.post(
+            "/api/v1/ingest/run",
+            json={
+                "mode": "incremental",
+                "limit": 1,
+            },
+        )
+        list_response = client.get("/api/v1/ingest/jobs")
+    finally:
+        monkeypatch.setattr(ingestion_routes, "service", original_service)
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert create_response.status_code == 202
+    assert list_response.status_code == 200
+    payload = list_response.json()
+    assert payload["items"][0]["status"] == "succeeded"
+    assert payload["items"][0]["started_at"] is not None
+    assert payload["items"][0]["finished_at"] is not None
+
+
+def test_ingestion_run_endpoint_surfaces_failed_job_status_after_execution(monkeypatch) -> None:
+    session = _sqlite_session()
+    client = _make_client(session)
+    coordinator = InlineExecutionCoordinator(
+        session,
+        terminal_status="failed",
+        error_code="worker_execution_failed",
+    )
+    original_service = ingestion_routes.service
+    monkeypatch.setattr(ingestion_routes, "service", IngestionJobService(executor=coordinator))
+
+    try:
+        create_response = client.post(
+            "/api/v1/ingest/run",
+            json={
+                "mode": "incremental",
+                "limit": 1,
+            },
+        )
+        list_response = client.get("/api/v1/ingest/jobs")
+        created_job = session.scalar(select(IngestionJob))
+    finally:
+        monkeypatch.setattr(ingestion_routes, "service", original_service)
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert create_response.status_code == 202
+    assert list_response.status_code == 200
+    payload = list_response.json()
+    assert payload["items"][0]["status"] == "failed"
+    assert created_job is not None
+    assert created_job.last_error_code == "worker_execution_failed"
 
 
 def test_ingestion_run_endpoint_validates_request_body() -> None:

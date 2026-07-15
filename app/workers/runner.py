@@ -4,7 +4,7 @@ import logging
 from time import sleep
 
 from app.core.config import settings
-from app.db.session import new_db_session
+from app.infrastructure.ingestion_execution import IngestionJobExecutionRunner
 from app.workers.ingestion import IngestionWorkerService
 
 
@@ -13,21 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 def run_forever() -> None:
-    worker = IngestionWorkerService()
+    runner = IngestionJobExecutionRunner(worker_service_factory=IngestionWorkerService)
 
     while True:
-        processed = 0
-        while processed < settings.ingest_worker_max_jobs_per_run:
-            session = new_db_session()
-            try:
-                result = worker.run_next_job(session)
-            finally:
-                session.close()
-
-            if result is None:
-                break
-
-            processed += 1
+        processed = runner.run_queued_jobs()
 
         if processed == 0:
             logger.info("ingestion_worker_idle")

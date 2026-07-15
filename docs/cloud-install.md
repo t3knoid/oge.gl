@@ -238,7 +238,7 @@ Verification expectations:
 Worker checks:
 
 1. submit a limited ingestion run through `POST /api/v1/ingest/run`
-2. verify the job transitions through queued and terminal states
+2. verify the job transitions through `queued`, `running`, and a terminal `succeeded` or `failed` state
 3. verify `discovered_count`, `downloaded_count`, `ingested_count`, `warning_count`, and `error_count` are updated by the worker
 4. verify filings and transactions become queryable through the API without duplicate rows after a repeated run
 
@@ -300,7 +300,8 @@ Check:
 
 Check:
 
-- the worker process is deployed and running with `python -m app.workers.runner`
+- the API process can dispatch its in-process queued-job runner after `POST /api/v1/ingest/run`
+- the worker process is deployed and running with `python -m app.workers.runner` if the environment relies on a dedicated worker
 - the worker can reach Supabase and any configured PDF storage location
 - job lifecycle events are being written with actionable failure details
 

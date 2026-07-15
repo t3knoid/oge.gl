@@ -415,7 +415,7 @@ Response:
     {
       "id": "job_01JZEXAMPLE6X8Y1Z2A3B4C5",
       "job_type": "incremental_ingest",
-      "status": "completed",
+      "status": "succeeded",
       "requested_at": "2026-07-09T12:00:00Z",
       "started_at": "2026-07-09T12:00:05Z",
       "finished_at": "2026-07-09T12:02:15Z",
@@ -553,7 +553,7 @@ Columns:
 
 Constraints:
 
-- check that `status` is one of `queued`, `running`, `completed`, `failed`, `cancelled`, `partial`
+- check that `status` is one of `queued`, `running`, `succeeded`, `failed`, `cancelled`
 
 Indexes:
 
@@ -610,18 +610,23 @@ States:
 
 - `queued`
 - `running`
-- `completed`
-- `partial`
+- `succeeded`
 - `failed`
 - `cancelled`
 
 Transitions:
 
 - `queued -> running`
-- `running -> completed`
-- `running -> partial`
+- `running -> succeeded`
 - `running -> failed`
 - `queued -> cancelled`
+
+## Execution Topology
+
+- `POST /api/v1/ingest/run` persists a queued job and returns `202 Accepted`
+- after the job row is committed, the API dispatches a serialized in-process background runner that opens a fresh database session and drains queued jobs through the existing worker service
+- the same queue can also be drained by the dedicated worker entrypoint `python -m app.workers.runner`
+- queue claiming remains authoritative at the database layer, so in-process dispatch and a dedicated worker process can coexist without moving scraper logic into routers
 
 ## Scheduling Approach
 

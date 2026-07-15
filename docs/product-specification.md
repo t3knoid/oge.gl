@@ -331,11 +331,11 @@ Returns a single filing with source metadata and transaction count.
 
 #### `POST /ingest/run`
 
-Triggers an ingestion job. This endpoint can be restricted to internal use.
+Queues an ingestion job and triggers background execution through the scraper-side ingestion runner. This endpoint can be restricted to internal use and continues to return a safe accepted response.
 
 #### `GET /ingest/jobs`
 
-Returns ingestion job status plus discovered, downloaded, ingested, warning, and error counts for each run.
+Returns ingestion job status plus discovered, downloaded, ingested, warning, and error counts for each run. Observable job states are `queued`, `running`, `succeeded`, and `failed`.
 
 ## Frontend Specification
 

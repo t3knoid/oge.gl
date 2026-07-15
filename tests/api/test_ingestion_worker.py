@@ -288,9 +288,9 @@ def test_worker_claims_and_completes_next_job() -> None:
     events = list(session.scalars(select(IngestionJobEvent).where(IngestionJobEvent.job_id == job.id)))
 
     assert result is not None
-    assert result.status == "completed"
+    assert result.status == "succeeded"
     assert refreshed is not None
-    assert refreshed.status == "completed"
+    assert refreshed.status == "succeeded"
     assert refreshed.discovered_count == 1
     assert refreshed.downloaded_count == 1
     assert refreshed.ingested_count == 1
@@ -364,7 +364,7 @@ def test_worker_persists_filings_transactions_and_job_counters() -> None:
     transactions = list(session.scalars(select(Transaction).order_by(Transaction.row_number)))
 
     assert result is not None
-    assert result.status == "partial"
+    assert result.status == "failed"
     assert result.discovered_count == 2
     assert result.downloaded_count == 2
     assert result.ingested_count == 1
@@ -372,7 +372,7 @@ def test_worker_persists_filings_transactions_and_job_counters() -> None:
     assert result.error_count == 1
 
     assert refreshed is not None
-    assert refreshed.status == "partial"
+    assert refreshed.status == "failed"
     assert refreshed.discovered_count == 2
     assert refreshed.downloaded_count == 2
     assert refreshed.ingested_count == 1

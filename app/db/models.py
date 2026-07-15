@@ -95,7 +95,7 @@ class IngestionJob(Base):
     __tablename__ = "ingestion_jobs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('queued', 'running', 'completed', 'failed', 'cancelled', 'partial')",
+            "status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')",
             name="ck_ingestion_jobs_status",
         ),
         Index("ix_ingestion_jobs_requested_at", "requested_at"),
