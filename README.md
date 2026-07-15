@@ -46,6 +46,10 @@ source .venv/bin/activate
 pip install -e .[dev]
 export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/oge"
 export OGE_BASE_URL="https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm"
+export LOG_LEVEL="INFO"
+export LOG_FORMAT="auto"
+export LOG_FILE_PATH="/var/log/oge.gl/backend.log"
+export LOG_ENABLE_ROW_DEBUG="false"
 alembic upgrade head
 ```
 
@@ -59,6 +63,10 @@ With the backend running, open the API docs at:
 
 - http://127.0.0.1:8000/docs (Swagger UI)
 - http://127.0.0.1:8000/openapi.json (OpenAPI schema)
+
+The API and worker use centralized backend logging. `LOG_FORMAT=auto` defaults to text in local runtime and JSON in non-local runtime. Set `LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) and `LOG_FORMAT` (`auto`, `json`, `text`) as needed.
+
+Local runtime writes logs to `LOG_FILE_PATH` (default `/var/log/oge.gl/backend.log`) and also emits the same events to process output so journal collectors can read them.
 
 In a second terminal:
 

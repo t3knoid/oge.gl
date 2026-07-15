@@ -117,6 +117,14 @@ Possible scraper-specific variables:
 - `SCRAPER_REQUEST_TIMEOUT`
 - `SCRAPER_RETRY_LIMIT`
 
+Runtime logging variables:
+
+- `LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)
+- `LOG_FORMAT` (`auto`, `json`, or `text`)
+- `RUNTIME_ENVIRONMENT` (`local` or `non_local`)
+- `LOG_FILE_PATH` (default `/var/log/oge.gl/backend.log`)
+- `LOG_ENABLE_ROW_DEBUG` (`true` or `false`)
+
 ## Database Requirements
 
 The database layer should support:
@@ -202,6 +210,18 @@ Useful additions if implemented:
 - row-level extraction diagnostics
 - admin-only ingestion status endpoints
 
+Backend logging behavior:
+
+- API and worker processes use the same centralized logging configuration.
+- Log output format is configurable with `LOG_FORMAT`.
+- `LOG_FORMAT=auto` uses text logging in local runtime and JSON logging in non-local runtime.
+- Log verbosity is configurable with `LOG_LEVEL`.
+- Request identifiers are used as log correlation context.
+- API request failures log structured context that includes request correlation identifiers.
+- Ingestion lifecycle logs include job-scoped context where available.
+- Row-level parser diagnostics emit debug logs only when `LOG_ENABLE_ROW_DEBUG=true` and `LOG_LEVEL=DEBUG`.
+- Local runtime writes logs to `LOG_FILE_PATH` (default `/var/log/oge.gl/backend.log`) and also emits equivalent events to process output for journal collectors.
+
 ## Local Development Workflow
 
 Supported local ingestion workflow:
@@ -228,6 +248,11 @@ source .venv/bin/activate
 pip install -e .[dev]
 export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/oge"
 export OGE_BASE_URL="https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm"
+export LOG_LEVEL="INFO"
+export LOG_FORMAT="auto"
+export RUNTIME_ENVIRONMENT="local"
+export LOG_FILE_PATH="/var/log/oge.gl/backend.log"
+export LOG_ENABLE_ROW_DEBUG="false"
 alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```

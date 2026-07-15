@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 
 
 class Settings(BaseSettings):
@@ -10,6 +11,11 @@ class Settings(BaseSettings):
     scraper_request_timeout: float = 30.0
     ingest_worker_poll_interval_seconds: float = 15.0
     ingest_worker_max_jobs_per_run: int = 10
+    runtime_environment: Literal["local", "non_local"] = "local"
+    log_level: str = "INFO"
+    log_format: Literal["auto", "json", "text"] = "auto"
+    log_enable_row_debug: bool = False
+    log_file_path: str = "/var/log/oge.gl/backend.log"
     cors_allow_origins: list[str] = [
         "http://127.0.0.1:5173",
         "http://localhost:5173",

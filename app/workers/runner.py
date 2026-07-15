@@ -4,11 +4,17 @@ import logging
 from time import sleep
 
 from app.core.config import settings
+from app.core.logging import configure_logging
 from app.infrastructure.ingestion_execution import IngestionJobExecutionRunner
 from app.workers.ingestion import IngestionWorkerService
 
 
-logging.basicConfig(level=logging.INFO)
+configure_logging(
+    level=settings.log_level,
+    log_format=settings.log_format,
+    runtime_environment=settings.runtime_environment,
+    log_file_path=settings.log_file_path,
+)
 logger = logging.getLogger(__name__)
 
 

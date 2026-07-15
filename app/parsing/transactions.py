@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+
+from app.core.config import settings
 
 
 ROW_RE = re.compile(
@@ -19,6 +22,9 @@ CONTINUATION_HINT_RE = re.compile(
     r"(purchase|sale|exchange|unsolicited|solicited|other|\$|\d{1,2}/\d{1,2}/\d{2,4}|\d{4}-\d{2}-\d{2}|owned|joint|spouse)",
     re.I,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -206,6 +212,14 @@ def parse_document_text(text: str) -> ParsedDocument:
                 raw_text=logical_row,
             )
         )
+        if settings.log_enable_row_debug and logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "parser_row_diagnostic",
+                extra={
+                    "diagnostic_code": "unparsed_row",
+                    "row_text": logical_row,
+                },
+            )
 
     return ParsedDocument(transactions=transactions, warnings=warnings)
 

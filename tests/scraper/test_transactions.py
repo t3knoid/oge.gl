@@ -1,3 +1,6 @@
+import logging
+
+from app.core.config import settings
 from app.parsing.transactions import extract_rows_from_text, parse_document_text, parse_row_line
 
 
@@ -84,3 +87,14 @@ def test_parse_document_text_preserves_trailing_wrapped_row_provenance() -> None
     assert parsed.transactions[0].raw_text == (
         "1 Apple Inc. purchase 05/08/2026 $1,001 - $15,000 Held jointly with spouse"
     )
+
+
+def test_parse_document_text_emits_opt_in_row_level_debug_logs(caplog, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "log_enable_row_debug", True)
+    caplog.set_level(logging.DEBUG, logger="app.parsing.transactions")
+
+    parse_document_text("Header\n1 Unparseable Candidate Row\nFooter")
+
+    debug_records = [record for record in caplog.records if record.getMessage() == "parser_row_diagnostic"]
+    assert debug_records
+    assert getattr(debug_records[-1], "diagnostic_code", None) == "unparsed_row"
