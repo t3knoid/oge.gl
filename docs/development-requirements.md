@@ -263,9 +263,28 @@ source .venv/bin/activate
 python -m app.workers.runner
 ```
 
+### Frontend Local Shell Workflow
+
+Use a separate terminal for the frontend shell.
+
+```bash
+cd /path/to/oge.gl/frontend
+npm install
+npm run dev
+```
+
+Optional API base URL override:
+
+```bash
+cd /path/to/oge.gl/frontend
+VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
+```
+
+The frontend shell runs on Vite's default local address (`http://127.0.0.1:5173`) and provides baseline search and transaction-detail route placeholders for API-driven development.
+
 ### Local Limitations And Troubleshooting
 
-- The frontend directory remains a scaffold in this implementation slice, so local verification remains API-driven.
+- The frontend shell provides route and state placeholders only; full search controls and result rendering land in follow-up implementation slices.
 - API and worker diagnostics are available in process logs from `uvicorn` and `python -m app.workers.runner`.
 - Run focused backend verification with `pytest -q tests/api/test_ingestion_worker.py tests/api/test_filing_and_ingestion_routes.py` when changing ingestion orchestration behavior.
 
