@@ -15,6 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class _JobProgress:
+    discovered_count: int = 0
+    downloaded_count: int = 0
+    ingested_count: int = 0
+    warning_count: int = 0
+    error_count: int = 0
+
+
+@dataclass
 class WorkerRunResult:
     job_id: UUID
     status: str
@@ -42,6 +51,8 @@ class IngestionWorkerService:
         if job is None:
             return None
 
+        progress = _JobProgress()
+
         self.repository.add_event(
             session,
             job_id=job.id,
@@ -55,6 +66,13 @@ class IngestionWorkerService:
             limit = job.source_filters.get("limit") if isinstance(job.source_filters, dict) else None
             workflow_result = self.workflow_service.ingest_discovered_filings(limit=limit)
             persistence_summary = self.persistence_service.persist_workflow_result(session, workflow_result)
+            progress = _JobProgress(
+                discovered_count=workflow_result.discovered_count,
+                downloaded_count=persistence_summary.downloaded_count,
+                ingested_count=persistence_summary.ingested_count,
+                warning_count=persistence_summary.warning_count,
+                error_count=persistence_summary.error_count,
+            )
 
             for filing_result in workflow_result.filing_results:
                 for warning in filing_result.warnings:
@@ -101,8 +119,8 @@ class IngestionWorkerService:
                     },
                 )
 
-            warning_count = persistence_summary.warning_count
-            error_count = persistence_summary.error_count
+            warning_count = progress.warning_count
+            error_count = progress.error_count
             status = "completed"
             if warning_count > 0 or error_count > 0:
                 status = "partial"
@@ -111,9 +129,9 @@ class IngestionWorkerService:
                 session,
                 job_id=job.id,
                 status=status,
-                discovered_count=workflow_result.discovered_count,
-                downloaded_count=persistence_summary.downloaded_count,
-                ingested_count=persistence_summary.ingested_count,
+                discovered_count=progress.discovered_count,
+                downloaded_count=progress.downloaded_count,
+                ingested_count=progress.ingested_count,
                 warning_count=warning_count,
                 error_count=error_count,
             )
@@ -124,10 +142,10 @@ class IngestionWorkerService:
                 severity="info",
                 message="Discovery execution finished for queued ingestion job.",
                 event_metadata={
-                    "discovered_count": workflow_result.discovered_count,
+                    "discovered_count": progress.discovered_count,
                     "skipped_missing_pdf_count": workflow_result.skipped_missing_pdf_count,
-                    "downloaded_count": persistence_summary.downloaded_count,
-                    "ingested_count": persistence_summary.ingested_count,
+                    "downloaded_count": progress.downloaded_count,
+                    "ingested_count": progress.ingested_count,
                     "error_count": error_count,
                     "warning_count": warning_count,
                 },
@@ -136,25 +154,40 @@ class IngestionWorkerService:
             return WorkerRunResult(
                 job_id=job.id,
                 status=status,
-                discovered_count=workflow_result.discovered_count,
-                downloaded_count=persistence_summary.downloaded_count,
-                ingested_count=persistence_summary.ingested_count,
+                discovered_count=progress.discovered_count,
+                downloaded_count=progress.downloaded_count,
+                ingested_count=progress.ingested_count,
                 warning_count=warning_count,
                 error_count=error_count,
             )
         except Exception as exc:
-            self.repository.mark_job_finished(
-                session,
-                job_id=job.id,
-                status="failed",
-                discovered_count=0,
-                downloaded_count=0,
-                ingested_count=0,
-                warning_count=0,
-                error_count=1,
-                last_error_code="worker_execution_failed",
-                last_error_message=str(exc),
-            )
+            error_count = max(progress.error_count, 1)
+            try:
+                self.repository.mark_job_finished(
+                    session,
+                    job_id=job.id,
+                    status="failed",
+                    discovered_count=progress.discovered_count,
+                    downloaded_count=progress.downloaded_count,
+                    ingested_count=progress.ingested_count,
+                    warning_count=progress.warning_count,
+                    error_count=error_count,
+                    last_error_code="worker_execution_failed",
+                    last_error_message=str(exc),
+                )
+            except Exception:
+                persisted_job = session.get(type(job), job.id)
+                if persisted_job is not None:
+                    persisted_job.status = "failed"
+                    persisted_job.finished_at = persisted_job.finished_at or job.started_at
+                    persisted_job.discovered_count = progress.discovered_count
+                    persisted_job.downloaded_count = progress.downloaded_count
+                    persisted_job.ingested_count = progress.ingested_count
+                    persisted_job.warning_count = progress.warning_count
+                    persisted_job.error_count = error_count
+                    persisted_job.last_error_code = "worker_execution_failed"
+                    persisted_job.last_error_message = str(exc)
+                    session.commit()
             self.repository.add_event(
                 session,
                 job_id=job.id,
@@ -167,9 +200,9 @@ class IngestionWorkerService:
             return WorkerRunResult(
                 job_id=job.id,
                 status="failed",
-                discovered_count=0,
-                downloaded_count=0,
-                ingested_count=0,
-                warning_count=0,
-                error_count=1,
+                discovered_count=progress.discovered_count,
+                downloaded_count=progress.downloaded_count,
+                ingested_count=progress.ingested_count,
+                warning_count=progress.warning_count,
+                error_count=error_count,
             )

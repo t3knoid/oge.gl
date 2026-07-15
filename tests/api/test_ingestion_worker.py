@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pytest
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.db.models import Filing, IngestionJob, IngestionJobEvent, Transaction
+from app.repositories.ingestion_jobs import IngestionJobRepository
+from app.repositories.ingestion_results import IngestionResultRepository
 from app.services.ingestion import (
     FilingIngestionResult,
     IngestionWorkflowResult,
@@ -15,6 +19,7 @@ from app.services.ingestion import (
     WorkflowFailure,
     WorkflowWarning,
 )
+from app.services.ingestion_persistence import IngestionPersistenceService
 from app.workers.ingestion import IngestionWorkerService
 
 
@@ -52,6 +57,64 @@ class StubIngestionWorkflowService:
 
     def ingest_discovered_filings(self, *, limit: int | None = None) -> IngestionWorkflowResult:
         return self.result
+
+
+class JobFinishFailingRepository(IngestionJobRepository):
+    def __init__(self) -> None:
+        self.failed_once = False
+
+    def mark_job_finished(
+        self,
+        session: Session,
+        *,
+        job_id,
+        status: str,
+        discovered_count: int,
+        downloaded_count: int,
+        ingested_count: int,
+        warning_count: int,
+        error_count: int,
+        last_error_code: str | None = None,
+        last_error_message: str | None = None,
+    ):
+        if not self.failed_once:
+            self.failed_once = True
+            raise RuntimeError("job status write failed")
+        return super().mark_job_finished(
+            session,
+            job_id=job_id,
+            status=status,
+            discovered_count=discovered_count,
+            downloaded_count=downloaded_count,
+            ingested_count=ingested_count,
+            warning_count=warning_count,
+            error_count=error_count,
+            last_error_code=last_error_code,
+            last_error_message=last_error_message,
+        )
+
+
+class DuplicateInsertOnceRepository(IngestionResultRepository):
+    def __init__(self) -> None:
+        self.returned_miss_once = False
+
+    def find_filing_by_identity(
+        self,
+        session: Session,
+        *,
+        external_id: str,
+        source_pdf_url: str,
+        source_pdf_sha256: str,
+    ) -> Filing | None:
+        if not self.returned_miss_once:
+            self.returned_miss_once = True
+            return None
+        return super().find_filing_by_identity(
+            session,
+            external_id=external_id,
+            source_pdf_url=source_pdf_url,
+            source_pdf_sha256=source_pdf_sha256,
+        )
 
 
 def _successful_filing_result(*, with_warning: bool = True) -> FilingIngestionResult:
@@ -307,5 +370,104 @@ def test_worker_reingestion_keeps_persistence_idempotent() -> None:
     assert len(transactions) == 2
     assert first_result.ingested_count == 1
     assert second_result.ingested_count == 1
+
+    session.close()
+
+
+def test_worker_preserves_partial_counts_when_job_finalization_fails() -> None:
+    session = _sqlite_session()
+    job = IngestionJob(
+        job_type="incremental_ingest",
+        mode="incremental",
+        status="queued",
+        requested_at=datetime.now(),
+        force_reprocess=False,
+        source_filters={"type": "278 Transaction", "limit": 10},
+    )
+    session.add(job)
+    session.commit()
+
+    worker = IngestionWorkerService(
+        repository=JobFinishFailingRepository(),
+        workflow_service=StubIngestionWorkflowService(
+            IngestionWorkflowResult(
+                discovered_count=1,
+                filing_results=[_successful_filing_result()],
+                skipped_missing_pdf_count=0,
+                failed_count=0,
+            )
+        ),
+    )
+
+    result = worker.run_next_job(session)
+
+    refreshed = session.get(IngestionJob, job.id)
+    filings = list(session.scalars(select(Filing)))
+    transactions = list(session.scalars(select(Transaction)))
+
+    assert result is not None
+    assert result.status == "failed"
+    assert result.discovered_count == 1
+    assert result.downloaded_count == 1
+    assert result.ingested_count == 1
+    assert result.warning_count == 1
+    assert result.error_count == 1
+
+    assert refreshed is not None
+    assert refreshed.status == "failed"
+    assert refreshed.discovered_count == 1
+    assert refreshed.downloaded_count == 1
+    assert refreshed.ingested_count == 1
+    assert refreshed.warning_count == 1
+    assert refreshed.error_count == 1
+    assert refreshed.last_error_code == "worker_execution_failed"
+    assert len(filings) == 1
+    assert len(transactions) == 2
+
+    session.close()
+
+
+def test_duplicate_filing_conflict_is_treated_as_idempotent_reload() -> None:
+    session = _sqlite_session()
+
+    repository = DuplicateInsertOnceRepository()
+    existing_filing = Filing(
+        external_id="oge:test-filing",
+        filer_name="Trump, Donald J",
+        filer_title="President",
+        agency="White House Office",
+        report_type="278T",
+        filing_date=None,
+        source_page_url="https://www.oge.gov/search",
+        source_pdf_url="https://www.oge.gov/files/one.pdf",
+        source_pdf_sha256="a" * 64,
+        raw_metadata={"existing": True},
+        ingest_status="completed",
+    )
+    session.add(existing_filing)
+    session.commit()
+
+    summary = IngestionPersistenceService(repository=repository).persist_workflow_result(
+        session,
+        IngestionWorkflowResult(
+            discovered_count=1,
+            filing_results=[_successful_filing_result()],
+            skipped_missing_pdf_count=0,
+            failed_count=0,
+        ),
+    )
+
+    filings = list(session.scalars(select(Filing)))
+    transactions = list(session.scalars(select(Transaction).order_by(Transaction.row_number)))
+
+    assert summary.downloaded_count == 1
+    assert summary.ingested_count == 1
+    assert summary.warning_count == 1
+    assert summary.error_count == 0
+    assert summary.issues == []
+    assert len(filings) == 1
+    assert len(transactions) == 2
+    assert filings[0].raw_metadata["position"] == "President"
+    assert transactions[0].description == "Apple Inc."
 
     session.close()

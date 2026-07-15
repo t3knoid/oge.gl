@@ -5,6 +5,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models import Filing, Transaction
@@ -87,9 +88,27 @@ class IngestionResultRepository:
                 scraped_at=payload.scraped_at,
             )
             session.add(filing)
-            session.flush()
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+                filing = self.find_filing_by_identity(
+                    session,
+                    external_id=payload.external_id,
+                    source_pdf_url=payload.source_pdf_url,
+                    source_pdf_sha256=payload.source_pdf_sha256,
+                )
+                if filing is None:
+                    raise
+                self._apply_filing_updates(filing, payload)
+                session.flush()
             return filing
 
+        self._apply_filing_updates(filing, payload)
+        session.flush()
+        return filing
+
+    def _apply_filing_updates(self, filing: Filing, payload: FilingUpsertInput) -> None:
         filing.external_id = payload.external_id
         filing.filer_name = payload.filer_name
         filing.filer_title = payload.filer_title
@@ -103,8 +122,6 @@ class IngestionResultRepository:
         filing.ingest_status = payload.ingest_status
         filing.downloaded_at = payload.downloaded_at
         filing.scraped_at = payload.scraped_at
-        session.flush()
-        return filing
 
     def replace_transactions(
         self,
