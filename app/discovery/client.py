@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import html
 from html.parser import HTMLParser
+import json
+import re
 from urllib.parse import urljoin
 
 import httpx
@@ -85,7 +88,27 @@ class OgeDiscoveryClient:
             return response.text
 
     def discover_transaction_filings(self) -> list[DiscoveryRecord]:
-        return self.parse_collection_html(self.fetch_collection_page())
+        with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
+            response = client.get(self.base_url)
+            response.raise_for_status()
+
+            content_type = (response.headers.get("content-type") or "").lower()
+            body = response.text
+
+            if "json" in content_type:
+                return self.parse_collection_json(body)
+
+            records = self.parse_collection_html(body)
+            if records:
+                return records
+
+            api_url = self._extract_json_api_url(body)
+            if api_url is None:
+                return records
+
+            api_response = client.get(api_url)
+            api_response.raise_for_status()
+            return self.parse_collection_json(api_response.text)
 
     def parse_collection_html(self, html: str) -> list[DiscoveryRecord]:
         parser = _CollectionTableParser()
@@ -124,3 +147,54 @@ class OgeDiscoveryClient:
             )
 
         return records
+
+    def parse_collection_json(self, payload: str) -> list[DiscoveryRecord]:
+        parsed = json.loads(payload)
+        items = parsed.get("data") if isinstance(parsed, dict) else None
+        if not isinstance(items, list):
+            return []
+
+        records: list[DiscoveryRecord] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+
+            type_label = str(item.get("type") or "").strip()
+            if "278 Transaction" not in type_label:
+                continue
+
+            source_pdf_url = None
+            href_match = re.search(r"href='([^']+)'", type_label)
+            if href_match is not None:
+                resolved_source_pdf_url = urljoin(self.base_url, href_match.group(1))
+                if is_allowed_source_pdf_url(resolved_source_pdf_url) and self._is_direct_pdf_url(resolved_source_pdf_url):
+                    source_pdf_url = resolved_source_pdf_url
+
+            if source_pdf_url is None:
+                continue
+
+            records.append(
+                DiscoveryRecord(
+                    filing_date=str(item.get("date") or "").strip(),
+                    position=str(item.get("title") or "").strip(),
+                    type_label=type_label,
+                    filer_name=str(item.get("name") or "").strip(),
+                    agency=str(item.get("agency") or "").strip(),
+                    level=str(item.get("level") or "").strip(),
+                    source_page_url=self.base_url,
+                    source_pdf_url=source_pdf_url,
+                )
+            )
+
+        return records
+
+    def _extract_json_api_url(self, page_html: str) -> str | None:
+        decoded_page = html.unescape(page_html)
+        match = re.search(r'"url"\s*:\s*"(https://extapps2\.oge\.gov/[^"]+/API\.xsp/v2/rest)"', decoded_page)
+        if match is None:
+            return None
+        return match.group(1)
+
+    def _is_direct_pdf_url(self, url: str) -> bool:
+        lowered = url.lower()
+        return lowered.endswith(".pdf") or "/$file/" in lowered
