@@ -73,7 +73,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.CheckConstraint(
-            "status IN ('queued', 'running', 'completed', 'failed', 'cancelled', 'partial')",
+            "status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')",
             name="ck_ingestion_jobs_status",
         ),
     )

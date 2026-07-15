@@ -633,3 +633,76 @@ def test_duplicate_transaction_conflict_is_retried_idempotently() -> None:
     assert transactions[1].raw_text == "2 Microsoft Corp. Sale Over $50,000,000"
 
     session.close()
+
+
+def test_conflicting_filing_identity_is_reported_and_skipped() -> None:
+    session = _sqlite_session()
+
+    session.add_all(
+        [
+            Filing(
+                external_id="oge:test-filing",
+                filer_name="Existing External",
+                filer_title="Representative",
+                agency="House",
+                report_type="278T",
+                filing_date=None,
+                source_page_url="https://www.oge.gov/search",
+                source_pdf_url="https://www.oge.gov/files/ext.pdf",
+                source_pdf_sha256="e" * 64,
+                raw_metadata={},
+                ingest_status="completed",
+            ),
+            Filing(
+                external_id="oge:url-filing",
+                filer_name="Existing URL",
+                filer_title="Representative",
+                agency="House",
+                report_type="278T",
+                filing_date=None,
+                source_page_url="https://www.oge.gov/search",
+                source_pdf_url="https://www.oge.gov/files/one.pdf",
+                source_pdf_sha256="u" * 64,
+                raw_metadata={},
+                ingest_status="completed",
+            ),
+            Filing(
+                external_id="oge:sha-filing",
+                filer_name="Existing SHA",
+                filer_title="Representative",
+                agency="House",
+                report_type="278T",
+                filing_date=None,
+                source_page_url="https://www.oge.gov/search",
+                source_pdf_url="https://www.oge.gov/files/sha.pdf",
+                source_pdf_sha256="a" * 64,
+                raw_metadata={},
+                ingest_status="completed",
+            ),
+        ]
+    )
+    session.commit()
+
+    summary = IngestionPersistenceService().persist_workflow_result(
+        session,
+        IngestionWorkflowResult(
+            discovered_count=1,
+            filing_results=[_successful_filing_result(with_warning=False)],
+            skipped_missing_pdf_count=0,
+            failed_count=0,
+        ),
+    )
+
+    filings = list(session.scalars(select(Filing)))
+    transactions = list(session.scalars(select(Transaction)))
+
+    assert summary.downloaded_count == 1
+    assert summary.ingested_count == 0
+    assert summary.warning_count == 0
+    assert summary.error_count == 1
+    assert len(summary.issues) == 1
+    assert summary.issues[0].code == "filing_identity_conflict"
+    assert len(filings) == 3
+    assert len(transactions) == 0
+
+    session.close()

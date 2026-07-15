@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -43,6 +43,20 @@ class TransactionUpsertInput:
     raw_text: str
 
 
+class FilingIdentityConflictError(Exception):
+    def __init__(
+        self,
+        *,
+        external_id: str,
+        source_pdf_url: str,
+        source_pdf_sha256: str,
+    ) -> None:
+        super().__init__(
+            "Filing identity fields match different rows "
+            f"for external_id={external_id}, source_pdf_url={source_pdf_url}, source_pdf_sha256={source_pdf_sha256}"
+        )
+
+
 class IngestionResultRepository:
     def find_filing_by_identity(
         self,
@@ -52,13 +66,34 @@ class IngestionResultRepository:
         source_pdf_url: str,
         source_pdf_sha256: str,
     ) -> Filing | None:
-        predicates = [Filing.external_id == external_id]
-        if source_pdf_url:
-            predicates.append(Filing.source_pdf_url == source_pdf_url)
-        if source_pdf_sha256:
-            predicates.append(Filing.source_pdf_sha256 == source_pdf_sha256)
+        match_by_sha = None
+        match_by_url = None
+        match_by_external = None
 
-        return session.scalar(select(Filing).where(or_(*predicates)).limit(1))
+        if source_pdf_sha256:
+            match_by_sha = session.scalar(select(Filing).where(Filing.source_pdf_sha256 == source_pdf_sha256).limit(1))
+        if source_pdf_url:
+            match_by_url = session.scalar(select(Filing).where(Filing.source_pdf_url == source_pdf_url).limit(1))
+        if external_id:
+            match_by_external = session.scalar(select(Filing).where(Filing.external_id == external_id).limit(1))
+
+        matched_ids = {
+            filing.id
+            for filing in (match_by_sha, match_by_url, match_by_external)
+            if filing is not None
+        }
+        if len(matched_ids) > 1:
+            raise FilingIdentityConflictError(
+                external_id=external_id,
+                source_pdf_url=source_pdf_url,
+                source_pdf_sha256=source_pdf_sha256,
+            )
+
+        if match_by_sha is not None:
+            return match_by_sha
+        if match_by_url is not None:
+            return match_by_url
+        return match_by_external
 
     def count_transactions_for_filing(self, session: Session, filing_id: UUID) -> int:
         return session.scalar(select(func.count()).select_from(Transaction).where(Transaction.filing_id == filing_id)) or 0

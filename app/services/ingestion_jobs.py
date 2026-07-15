@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Protocol
 from uuid import UUID
 
@@ -9,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.infrastructure.ingestion_execution import IngestionJobExecutionCoordinator
 from app.repositories.ingestion_jobs import CreateIngestionJobInput, IngestionJobRepository
 from app.schemas.ingestion_jobs import IngestionJobAcceptedResponse, IngestionJobItem, IngestionJobListResponse
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,7 +68,21 @@ class IngestionJobService:
                 source_filters=command.source_filters or {"type": "278 Transaction", "limit": command.limit},
             ),
         )
-        self.executor.submit_job(job.id)
+        try:
+            self.executor.submit_job(job.id)
+        except Exception:
+            logger.exception("ingestion_job_dispatch_failed", extra={"job_id": str(job.id)})
+            try:
+                self.repository.add_event(
+                    session,
+                    job_id=job.id,
+                    event_type="job_dispatch_failed",
+                    severity="error",
+                    message="Queued ingestion job dispatch failed after acceptance.",
+                    event_metadata={"error_code": "dispatch_failed"},
+                )
+            except Exception:
+                logger.exception("ingestion_job_dispatch_event_failed", extra={"job_id": str(job.id)})
         return IngestionJobAcceptedResponse(
             job_id=str(job.id),
             status=job.status,

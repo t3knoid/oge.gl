@@ -332,6 +332,7 @@ Returns a single filing with source metadata and transaction count.
 #### `POST /ingest/run`
 
 Queues an ingestion job and triggers background execution through the scraper-side ingestion runner. This endpoint can be restricted to internal use and continues to return a safe accepted response.
+If background dispatch fails after queueing, the accepted response still reflects the persisted queued job so a worker process can claim it later.
 
 #### `GET /ingest/jobs`
 

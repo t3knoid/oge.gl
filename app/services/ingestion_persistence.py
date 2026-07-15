@@ -6,7 +6,12 @@ from datetime import date, datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.repositories.ingestion_results import FilingUpsertInput, IngestionResultRepository, TransactionUpsertInput
+from app.repositories.ingestion_results import (
+    FilingIdentityConflictError,
+    FilingUpsertInput,
+    IngestionResultRepository,
+    TransactionUpsertInput,
+)
 from app.services.ingestion import FilingIngestionResult, IngestionWorkflowResult
 
 
@@ -54,6 +59,20 @@ class IngestionPersistenceService:
             try:
                 self._persist_filing_result(session, filing_result)
                 session.commit()
+            except FilingIdentityConflictError as exc:
+                session.rollback()
+                if not had_workflow_failure:
+                    error_count += 1
+                issues.append(
+                    PersistenceIssue(
+                        code="filing_identity_conflict",
+                        message=str(exc),
+                        severity="error",
+                        external_id=filing_result.external_id,
+                        source_pdf_url=filing_result.source_pdf_url,
+                    )
+                )
+                continue
             except IntegrityError:
                 session.rollback()
                 try:

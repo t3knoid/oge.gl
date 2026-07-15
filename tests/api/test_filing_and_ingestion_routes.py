@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.routes import ingestion as ingestion_routes
 from app.api.dependencies import db_session_dependency
 from app.db.base import Base
-from app.db.models import Filing, IngestionJob, Transaction
+from app.db.models import Filing, IngestionJob, IngestionJobEvent, Transaction
 from app.main import app
 from app.services.ingestion_jobs import IngestionJobService
 
@@ -23,6 +23,11 @@ class RecordingExecutionCoordinator:
 
     def submit_job(self, job_id: object) -> None:
         self.submitted_job_ids.append(str(job_id))
+
+
+class FailingExecutionCoordinator:
+    def submit_job(self, job_id: object) -> None:
+        raise RuntimeError(f"failed to dispatch {job_id}")
 
 
 class InlineExecutionCoordinator:
@@ -310,6 +315,35 @@ def test_ingestion_run_endpoint_triggers_execution_handoff(monkeypatch) -> None:
     assert response.status_code == 202
     payload = response.json()
     assert coordinator.submitted_job_ids == [payload["job_id"]]
+
+
+def test_ingestion_run_endpoint_accepts_request_when_dispatch_fails(monkeypatch) -> None:
+    session = _sqlite_session()
+    client = _make_client(session)
+    original_service = ingestion_routes.service
+    monkeypatch.setattr(ingestion_routes, "service", IngestionJobService(executor=FailingExecutionCoordinator()))
+
+    try:
+        response = client.post(
+            "/api/v1/ingest/run",
+            json={
+                "mode": "incremental",
+                "limit": 2,
+            },
+        )
+        created_job = session.scalar(select(IngestionJob))
+        events = list(session.scalars(select(IngestionJobEvent)))
+    finally:
+        monkeypatch.setattr(ingestion_routes, "service", original_service)
+        app.dependency_overrides.clear()
+        session.close()
+
+    assert response.status_code == 202
+    assert created_job is not None
+    assert created_job.status == "queued"
+    assert len(events) == 1
+    assert events[0].event_type == "job_dispatch_failed"
+    assert events[0].event_metadata == {"error_code": "dispatch_failed"}
 
 
 def test_ingestion_run_endpoint_surfaces_succeeded_job_status_after_execution(monkeypatch) -> None:
