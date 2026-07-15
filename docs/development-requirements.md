@@ -206,6 +206,8 @@ Useful additions if implemented:
 
 Supported local ingestion workflow:
 
+For end-user-oriented search and provenance usage steps, see [User Guide](./user-guide.md).
+
 1. start PostgreSQL
 2. prepare a Python environment and install dependencies
 3. export required environment values

@@ -8,6 +8,7 @@ The repository keeps backend Python components in [app/](app), Alembic migration
 
 ## Documentation
 
+- [User guide](docs/user-guide.md)
 - [Product specification](docs/product-specification.md)
 - [Development requirements](docs/development-requirements.md)
 - [Local ingestion workflow](docs/development-requirements.md#local-development-workflow)
