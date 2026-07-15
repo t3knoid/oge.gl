@@ -1,0 +1,21 @@
+# Default local runtime configuration for oge.gl backend processes.
+# Environment variables always take precedence over values in this file.
+# Do not commit secrets in this file for non-local environments.
+
+app_name = "oge.gl API"
+app_version = "0.1.0"
+api_v1_prefix = "/api/v1"
+database_url = "postgresql+psycopg://postgres:postgres@localhost:5432/oge"
+oge_base_url = "https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm"
+scraper_request_timeout = 30.0
+ingest_worker_poll_interval_seconds = 15.0
+ingest_worker_max_jobs_per_run = 10
+runtime_environment = "local"
+log_level = "INFO"
+log_format = "auto"
+log_enable_row_debug = false
+log_file_path = "/var/log/oge.gl/backend.log"
+cors_allow_origins = [
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+]

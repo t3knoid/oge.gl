@@ -1,5 +1,12 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+from pathlib import Path
 from typing import Literal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
+
+
+DEFAULT_CONFIG_FILE_PATH = Path(__file__).resolve().parents[2] / "config" / "default.toml"
+CONFIG_FILE_ENV_VAR = "APP_CONFIG_FILE"
 
 
 class Settings(BaseSettings):
@@ -25,6 +32,29 @@ class Settings(BaseSettings):
         env_prefix="",
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        def empty_settings_source():
+            return {}
+
+        configured_path = os.getenv(CONFIG_FILE_ENV_VAR)
+        config_file_path = Path(configured_path).expanduser() if configured_path else DEFAULT_CONFIG_FILE_PATH
+
+        if not config_file_path.exists():
+            config_file_source = empty_settings_source
+        else:
+            config_file_source = TomlConfigSettingsSource(settings_cls, toml_file=config_file_path)
+
+        # Precedence: init kwargs > environment variables > config file > dotenv > file secrets
+        return init_settings, env_settings, config_file_source, dotenv_settings, file_secret_settings
 
 
 settings = Settings()
