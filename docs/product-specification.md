@@ -372,6 +372,7 @@ Recommended columns:
 - source
 
 The source column should link to the original PDF.
+Each row should also provide navigation to a transaction detail surface that includes filing context and provenance metadata from API responses.
 
 ### UX Requirements
 

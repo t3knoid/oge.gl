@@ -266,6 +266,20 @@ describe("frontend shell routing", () => {
     expect(await screen.findByText(/No transactions matched the active filters./i)).toBeInTheDocument();
   });
 
+  it("renders a results table with source PDF provenance links", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("table", { name: /Transaction search results/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /Filer/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /Source/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Jane Doe/i })).toHaveAttribute("href", "/transactions/example");
+    expect(screen.getByRole("link", { name: /Source PDF/i })).toHaveAttribute("href", "https://example.com/source.pdf");
+  });
+
   it("navigates to the transaction detail route", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
@@ -277,6 +291,14 @@ describe("frontend shell routing", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: "Transaction Detail" })).toBeInTheDocument();
     expect(await screen.findByText(/Transaction ID: example/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Transaction" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Filing Context" })).toBeInTheDocument();
+    expect(screen.getByText(/Filer/i)).toBeInTheDocument();
+    expect(screen.getByText(/Agency/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open filing source page/i })).toHaveAttribute(
+      "href",
+      "https://example.com/page"
+    );
     expect(screen.getByText(/Source PDF Provenance/i)).toBeInTheDocument();
   });
 
@@ -352,7 +374,7 @@ describe("frontend shell routing", () => {
     );
 
     expect(await screen.findByText(/Transaction ID: example/i)).toBeInTheDocument();
-    expect(screen.getByText(/Description:/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Transaction" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open source PDF/i })).toHaveAttribute(
       "href",
       "https://example.com/fallback-source.pdf"

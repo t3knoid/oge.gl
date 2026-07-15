@@ -24,6 +24,13 @@ interface SearchFilterFormState {
   order: SortOrder;
 }
 
+function formatNullable(value: string | number | null): string {
+  if (value === null || value === "") {
+    return "Unavailable";
+  }
+  return String(value);
+}
+
 function parsePositiveInteger(value: string | null, fallback: number): number {
   if (!value) {
     return fallback;
@@ -339,20 +346,52 @@ function SearchRoute(): JSX.Element {
 
         {!isLoading && !error && items.length > 0 ? (
           <article className="state-card">
-            <h3>Loaded</h3>
+            <h3>Results</h3>
             <p>
               Loaded {items.length} of {total} transactions from the centralized API client.
             </p>
             <p>
               Page {page} sorted by {sort} ({order}).
             </p>
-            <ul>
-              {items.slice(0, 3).map((item) => (
-                <li key={item.id}>
-                  <Link to={`/transactions/${item.id}`}>{item.filer_name}</Link>
-                </li>
-              ))}
-            </ul>
+            <div className="results-table-wrap">
+              <table className="results-table">
+                <caption className="sr-only">Transaction search results</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Filer</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Trade type</th>
+                    <th scope="col">Transaction date</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Filing date</th>
+                    <th scope="col">Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <Link to={`/transactions/${item.id}`}>{item.filer_name}</Link>
+                      </td>
+                      <td>{item.description}</td>
+                      <td>{item.trade_type}</td>
+                      <td>{formatNullable(item.transaction_date)}</td>
+                      <td>{formatNullable(item.amount_text)}</td>
+                      <td>{formatNullable(item.filing_date)}</td>
+                      <td>
+                        {item.source_pdf_url ? (
+                          <a href={item.source_pdf_url} target="_blank" rel="noreferrer">
+                            Source PDF
+                          </a>
+                        ) : (
+                          <span>Unavailable</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="pagination-actions" aria-label="Pagination controls">
               <button type="button" disabled={page <= 1 || isLoading} onClick={() => onPageChange(page - 1)}>
                 Previous page
@@ -436,9 +475,58 @@ function TransactionDetailRoute(): JSX.Element {
       {!isLoading && !error ? <p>Transaction ID: {transactionId}</p> : null}
 
       {!isLoading && !error && transaction ? (
-        <p>
-          Description: <strong>{transaction.transaction.description}</strong>
-        </p>
+        <div className="detail-grid">
+          <article className="state-card">
+            <h3>Transaction</h3>
+            <dl className="detail-list">
+              <div>
+                <dt>Description</dt>
+                <dd>{formatNullable(transaction.transaction.description)}</dd>
+              </div>
+              <div>
+                <dt>Trade type</dt>
+                <dd>{formatNullable(transaction.transaction.trade_type)}</dd>
+              </div>
+              <div>
+                <dt>Transaction date</dt>
+                <dd>{formatNullable(transaction.transaction.transaction_date)}</dd>
+              </div>
+              <div>
+                <dt>Amount</dt>
+                <dd>{formatNullable(transaction.transaction.amount_text)}</dd>
+              </div>
+              <div>
+                <dt>Raw extraction</dt>
+                <dd>{formatNullable(transaction.transaction.raw_text)}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="state-card">
+            <h3>Filing Context</h3>
+            <dl className="detail-list">
+              <div>
+                <dt>Filer</dt>
+                <dd>{formatNullable(transaction.filing.filer_name)}</dd>
+              </div>
+              <div>
+                <dt>Agency</dt>
+                <dd>{formatNullable(transaction.filing.agency)}</dd>
+              </div>
+              <div>
+                <dt>Filing date</dt>
+                <dd>{formatNullable(transaction.filing.filing_date)}</dd>
+              </div>
+            </dl>
+            {transaction.filing.source_page_url ? (
+              <p>
+                <a href={transaction.filing.source_page_url} target="_blank" rel="noreferrer">
+                  Open filing source page
+                </a>
+              </p>
+            ) : null}
+          </article>
+        </div>
       ) : null}
 
       <div className="state-card">

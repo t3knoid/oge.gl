@@ -285,6 +285,8 @@ The frontend shell runs on Vite's default local address (`http://127.0.0.1:5173`
 
 The search route exposes labeled controls for filer name, description, trade type, transaction date, date range, and amount filters. The route preserves filter, pagination, and sort state in the URL query string and maps those values to the backend transaction query parameters through the centralized API client.
 
+The results view renders an accessible transactions table with filer, description, trade type, transaction date, amount, filing date, and source PDF columns. The transaction detail route renders normalized transaction values plus filing context and provenance links returned by the backend.
+
 Use the frontend workspace scripts for local verification when frontend dependencies or routes change:
 
 ```bash
@@ -302,9 +304,11 @@ The frontend shell uses a centralized API client module for transactions list an
 - Manual frontend verification path:
   1. Start the API service and frontend shell.
   2. Open `http://127.0.0.1:5173`.
-  3. Apply combined search filters and confirm results update.
-  4. Use reset filters and confirm the default query reloads.
-  5. Refresh the page and confirm URL query state restores the same filtered result view.
+  3. Apply combined search filters and confirm table results update.
+  4. Verify the source PDF column links to backend-provided provenance URLs.
+  5. Open a transaction detail route and verify filing context plus source links render.
+  6. Use reset filters and confirm the default query reloads.
+  7. Refresh the page and confirm URL query state restores the same filtered result view.
 - API and worker diagnostics are available in process logs from `uvicorn` and `python -m app.workers.runner`.
 - Run focused backend verification with `pytest -q tests/api/test_ingestion_worker.py tests/api/test_filing_and_ingestion_routes.py` when changing ingestion orchestration behavior.
 

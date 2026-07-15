@@ -40,6 +40,8 @@ VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 
 - Provides API-driven search and transaction detail routes.
 - Provides labeled filter controls for filer name, description, trade type, transaction date, date range, and amount fields.
+- Renders a transaction results table with filer, description, trade type, transaction date, amount, filing date, and source PDF columns.
+- Renders transaction detail with filing context and provenance links from backend payload fields.
 - Preserves filter, pagination, and sort state in URL query params for deterministic refresh and navigation behavior.
 - Provides loading, empty, error, and paged result states for filtered queries.
 - Keeps business logic and scraping behavior out of the browser.
