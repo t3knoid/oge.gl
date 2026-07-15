@@ -203,18 +203,20 @@ Useful additions if implemented:
 
 ## Local Development Workflow
 
-Recommended workflow:
+Supported local ingestion workflow:
 
 1. start PostgreSQL
-2. run database migrations
-3. run scraper against a small fixture or a limited live batch
-4. start the API service
-5. start the frontend app
-6. validate search and source PDF links in the browser
+2. prepare a Python environment and install dependencies
+3. export required environment values
+4. run database migrations
+5. start the API service
+6. submit an ingestion job through the API
+7. verify ingestion job status and persisted results through API endpoints
+8. optionally run the dedicated worker loop for continuous queue draining
 
-### API Startup Commands
+### Local Setup Commands
 
-Example local API startup flow:
+Use one terminal for setup and API startup.
 
 ```bash
 cd /path/to/oge.gl
@@ -222,20 +224,50 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
 export DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/oge"
+export OGE_BASE_URL="https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm"
 alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Scraper Startup Commands
+### Ingestion Submission And Verification Commands
 
-Example local scraper setup flow:
+Use another terminal while the API is running.
 
 ```bash
 cd /path/to/oge.gl
-python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+
+curl -sS -X POST "http://127.0.0.1:8000/api/v1/ingest/run" \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"incremental","limit":1}'
+
+curl -sS "http://127.0.0.1:8000/api/v1/ingest/jobs"
+curl -sS "http://127.0.0.1:8000/api/v1/transactions?page=1&page_size=5"
+curl -sS "http://127.0.0.1:8000/api/v1/transactions/REPLACE_WITH_TRANSACTION_ID"
+curl -sS "http://127.0.0.1:8000/api/v1/filings/REPLACE_WITH_FILING_ID"
 ```
+
+Use a transaction ID from the list response, then use the filing ID from the transaction detail response to verify filing data and source PDF provenance.
+
+Repeat the same `POST /api/v1/ingest/run` call to confirm idempotent behavior and verify filing and transaction endpoints remain duplicate-safe for repeated ingestion.
+
+### Optional Dedicated Worker Commands
+
+`POST /api/v1/ingest/run` dispatches an in-process queue runner after creating the job, so a dedicated worker process is optional for local runs.
+
+Use a third terminal only when you want a continuously polling worker loop.
+
+```bash
+cd /path/to/oge.gl
+source .venv/bin/activate
+python -m app.workers.runner
+```
+
+### Local Limitations And Troubleshooting
+
+- The frontend directory remains a scaffold in this implementation slice, so local verification remains API-driven.
+- API and worker diagnostics are available in process logs from `uvicorn` and `python -m app.workers.runner`.
+- Run focused backend verification with `pytest -q tests/api/test_ingestion_worker.py tests/api/test_filing_and_ingestion_routes.py` when changing ingestion orchestration behavior.
 
 The shared backend package keeps API, worker, and scraper execution programmatic while the ingestion workflow persists filing records, reconciles transaction rows, and updates ingestion job counters.
 
