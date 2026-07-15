@@ -10,7 +10,7 @@ Use this guide for:
 - running Alembic migrations in a controlled rollout step
 - performing repeatable post-deploy verification and operational checks
 
-This repository includes a production API `Dockerfile`, a root `fly.toml`, and a worker process command for queued ingestion execution. The worker executes the discovery phase and updates ingestion job state and counts, but it does not persist filings or transactions.
+This repository includes a production API `Dockerfile`, a root `fly.toml`, and a worker process command for queued ingestion execution. The worker discovers eligible filings, downloads and parses PDFs, persists filing and transaction results idempotently, and updates ingestion job state and counts.
 
 Fly.io and Supabase are the default documented deployment targets, not the only supported way to run `oge.gl`. The application can also be deployed natively or on other infrastructure as long as the runtime, database, migration, and service-boundary requirements in the repository documentation are preserved.
 
@@ -26,8 +26,7 @@ Target production serving model:
 - Fly.io runs the API service as the public backend
 - Fly.io runs the scraper worker as a separate process boundary
 - the API exposes search, filing, and ingestion status endpoints only
-- the scraper worker process performs OGE discovery execution and updates ingestion job state
-- PDF download, parse, normalization, and persistence remain separate implementation work outside this deployment slice
+- the scraper worker process performs OGE discovery, PDF download, parsing, normalization, and persistence work
 - the database remains the system of record for normalized filings, normalized transactions, and ingestion job state
 - source PDF provenance remains preserved in stored filing records and transaction provenance fields
 
@@ -41,11 +40,10 @@ Operational notes:
 Repository deployment scope:
 
 - the API service exists and can run locally
-- ingestion job endpoints exist and queued-job execution covers the discovery-phase worker path
-- the worker process can claim queued ingestion jobs and execute the current discovery workflow
-- the persistence-backed filing and transaction ingestion path remains separate implementation work
+- ingestion job endpoints exist and queued-job execution covers the current worker path
+- the worker process can claim queued ingestion jobs, persist filing and transaction results, and update job lifecycle events
 - a production API `Dockerfile` and root `fly.toml` are committed for the Fly API deployment path
-- a Fly worker process command is committed, but full persistence-backed worker behavior remains incomplete
+- a Fly worker process command is committed for the persistence-backed ingestion path
 
 ## 2. Prerequisites
 
@@ -205,17 +203,11 @@ The worker process deploys from the same Fly image using the `worker` process co
 Worker expectations:
 
 - it claims queued ingestion jobs from the database
-- it runs the current discovery workflow against the OGE collection page
-- it updates job state, counts, and lifecycle events in PostgreSQL
+- it runs the current discovery, download, parse, and persistence workflow against the OGE collection page
+- it updates job state, discovered counts, downloaded counts, ingested counts, warnings, errors, and lifecycle events in PostgreSQL
 - it does not serve public HTTP traffic as the main API surface
 - it shares the production database with the API service through the same Supabase project
 - it keeps long-running ingestion activity out of request-response handling
-
-Current gaps:
-
-- the worker does not yet persist filings or transactions
-- the worker does not yet download or cache PDFs
-- the worker marks successful discovery-only runs as `completed` or `partial` based on warning counts only
 
 Suggested Fly operations:
 
@@ -247,8 +239,8 @@ Worker checks:
 
 1. submit a limited ingestion run through `POST /api/v1/ingest/run`
 2. verify the job transitions through queued and terminal states
-3. verify `discovered_count`, `warning_count`, and job events are updated by the worker
-4. treat filing and transaction persistence as not yet implemented in this deployment slice
+3. verify `discovered_count`, `downloaded_count`, `ingested_count`, `warning_count`, and `error_count` are updated by the worker
+4. verify filings and transactions become queryable through the API without duplicate rows after a repeated run
 
 ## 10. Operations and Monitoring
 

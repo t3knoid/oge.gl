@@ -335,7 +335,7 @@ Triggers an ingestion job. This endpoint can be restricted to internal use.
 
 #### `GET /ingest/jobs`
 
-Returns ingestion job status, counts, and failures.
+Returns ingestion job status plus discovered, downloaded, ingested, warning, and error counts for each run.
 
 ## Frontend Specification
 
@@ -389,7 +389,7 @@ Recommended ingestion stages:
 4. download PDFs
 5. extract raw text and rows
 6. normalize fields
-7. upsert filing and transaction records
+7. upsert filing records and reconcile transaction rows for the same filing
 8. record success, warnings, and failures
 
 ## Error Handling Requirements
@@ -410,6 +410,7 @@ Failures should be logged with enough metadata to re-run individual filings.
 ### Idempotency
 
 Ingestion must be idempotent. Running the same ingestion job multiple times should not create duplicate filings or duplicate transactions.
+Successful reprocessing should update the same filing identity and reconcile its transaction rows instead of appending duplicate copies of the same logical filing.
 
 ### Auditability
 

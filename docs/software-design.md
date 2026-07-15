@@ -636,6 +636,8 @@ Transitions:
 - guard job start with an advisory lock or equivalent mutual exclusion mechanism
 - deduplicate filing ingestion by `source_pdf_url`, `source_pdf_sha256`, or stable external identity before insert
 - make transaction upserts idempotent using the unique row identity strategy
+- successful reprocessing should reconcile the filing's transaction set for the same source identity instead of appending duplicate rows
+- a failed reprocess should preserve previously stored successful transactions for the filing while recording the new failure through job events and counts
 
 ## Parser Fallback Strategy
 

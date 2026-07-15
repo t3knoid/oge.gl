@@ -237,7 +237,7 @@ source .venv/bin/activate
 pip install -e .[dev]
 ```
 
-The shared backend package keeps API, worker, and scraper execution programmatic while the ingestion workflow remains partially implemented.
+The shared backend package keeps API, worker, and scraper execution programmatic while the ingestion workflow persists filing records, reconciles transaction rows, and updates ingestion job counters.
 
 ## Deployment Considerations
 

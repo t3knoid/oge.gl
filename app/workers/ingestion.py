@@ -7,7 +7,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.repositories.ingestion_jobs import IngestionJobRepository
-from app.workers.discovery import DiscoveryWorkflowResult, DiscoveryWorkflowService
+from app.services.ingestion import IngestionWorkflowService
+from app.services.ingestion_persistence import IngestionPersistenceService
 
 
 logger = logging.getLogger(__name__)
@@ -29,10 +30,12 @@ class IngestionWorkerService:
         self,
         *,
         repository: IngestionJobRepository | None = None,
-        workflow_service: DiscoveryWorkflowService | None = None,
+        workflow_service: IngestionWorkflowService | None = None,
+        persistence_service: IngestionPersistenceService | None = None,
     ) -> None:
         self.repository = repository or IngestionJobRepository()
-        self.workflow_service = workflow_service or DiscoveryWorkflowService()
+        self.workflow_service = workflow_service or IngestionWorkflowService()
+        self.persistence_service = persistence_service or IngestionPersistenceService()
 
     def run_next_job(self, session: Session) -> WorkerRunResult | None:
         job = self.repository.claim_next_job(session)
@@ -50,19 +53,69 @@ class IngestionWorkerService:
 
         try:
             limit = job.source_filters.get("limit") if isinstance(job.source_filters, dict) else None
-            workflow_result = self.workflow_service.run_incremental_discovery(limit=limit)
-            warning_count = workflow_result.skipped_missing_pdf_count
-            status = "partial" if warning_count > 0 else "completed"
+            workflow_result = self.workflow_service.ingest_discovered_filings(limit=limit)
+            persistence_summary = self.persistence_service.persist_workflow_result(session, workflow_result)
+
+            for filing_result in workflow_result.filing_results:
+                for warning in filing_result.warnings:
+                    self.repository.add_event(
+                        session,
+                        job_id=job.id,
+                        event_type="filing_warning",
+                        severity="warning",
+                        message=warning.message,
+                        event_metadata={
+                            "code": warning.code,
+                            "external_id": filing_result.external_id,
+                            "source_pdf_url": filing_result.source_pdf_url,
+                            "raw_text": warning.raw_text,
+                        },
+                    )
+
+                if filing_result.failure is not None:
+                    self.repository.add_event(
+                        session,
+                        job_id=job.id,
+                        event_type="filing_failed",
+                        severity="error",
+                        message=filing_result.failure.message,
+                        event_metadata={
+                            "stage": filing_result.failure.stage,
+                            "code": filing_result.failure.code,
+                            "external_id": filing_result.external_id,
+                            "source_pdf_url": filing_result.source_pdf_url,
+                        },
+                    )
+
+            for issue in persistence_summary.issues:
+                self.repository.add_event(
+                    session,
+                    job_id=job.id,
+                    event_type="filing_persistence_failed",
+                    severity=issue.severity,
+                    message=issue.message,
+                    event_metadata={
+                        "code": issue.code,
+                        "external_id": issue.external_id,
+                        "source_pdf_url": issue.source_pdf_url,
+                    },
+                )
+
+            warning_count = persistence_summary.warning_count
+            error_count = persistence_summary.error_count
+            status = "completed"
+            if warning_count > 0 or error_count > 0:
+                status = "partial"
 
             self.repository.mark_job_finished(
                 session,
                 job_id=job.id,
                 status=status,
                 discovered_count=workflow_result.discovered_count,
-                downloaded_count=0,
-                ingested_count=0,
+                downloaded_count=persistence_summary.downloaded_count,
+                ingested_count=persistence_summary.ingested_count,
                 warning_count=warning_count,
-                error_count=0,
+                error_count=error_count,
             )
             self.repository.add_event(
                 session,
@@ -72,8 +125,11 @@ class IngestionWorkerService:
                 message="Discovery execution finished for queued ingestion job.",
                 event_metadata={
                     "discovered_count": workflow_result.discovered_count,
-                    "eligible_count": len(workflow_result.eligible_records),
                     "skipped_missing_pdf_count": workflow_result.skipped_missing_pdf_count,
+                    "downloaded_count": persistence_summary.downloaded_count,
+                    "ingested_count": persistence_summary.ingested_count,
+                    "error_count": error_count,
+                    "warning_count": warning_count,
                 },
             )
             logger.info("ingestion_job_finished", extra={"job_id": str(job.id), "status": status})
@@ -81,10 +137,10 @@ class IngestionWorkerService:
                 job_id=job.id,
                 status=status,
                 discovered_count=workflow_result.discovered_count,
-                downloaded_count=0,
-                ingested_count=0,
+                downloaded_count=persistence_summary.downloaded_count,
+                ingested_count=persistence_summary.ingested_count,
                 warning_count=warning_count,
-                error_count=0,
+                error_count=error_count,
             )
         except Exception as exc:
             self.repository.mark_job_finished(
