@@ -249,14 +249,15 @@ If the source document contains variants, the original text should still be pres
 
 OGE filings often use amount buckets rather than exact values. The system should:
 
-1. Store the source amount text exactly as shown.
+1. Store a normalized display form of the source amount text using consistent dollar formatting and separators.
 2. Derive `amount_min` and `amount_max` where the filing uses a known range bucket.
-3. Allow search by bucket text even when numeric normalization is not possible.
+3. Preserve the original source row text in `raw_text` for auditability when OCR or PDF extraction introduces formatting noise.
+4. Allow search by bucket text even when numeric normalization is not possible.
 
 Example normalization:
 
-- `$1,001 - $15,000` -> `amount_min=1001`, `amount_max=15000`
-- `Over $1,000,000` -> `amount_min=1000000`, `amount_max=NULL`
+- `$1,001 - $15,000` -> `amount_text="$1,001-$15,000"`, `amount_min=1001`, `amount_max=15000`
+- `Over $1,000,000` -> `amount_text="Over $1,000,000"`, `amount_min=1000000`, `amount_max=NULL`
 
 ### Date Normalization
 

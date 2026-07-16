@@ -6,11 +6,17 @@ import re
 
 OGE_DATE_TOKEN_PATTERN = (
     r"(?:"
-    r"\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{2,4}"
+    r"\d{1,2}\s*[\/\.\-]\s*\d{1,2}\s*[\/\.\-]\s*\d{2,4}"
     r"|"
-    r"\d{4}\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{1,2}"
+    r"\d{1,2}\s*[\/\.\-]\s*\d{2}1\d{4}"
     r"|"
-    r"\d{3,4}\s*[\/.\-]\s*\d{4}"
+    r"\d{1,2}\s*[\/\.\-]\s*\d{1,2}\d{4}"
+    r"|"
+    r"\d{4}\s*[\/\.\-]\s*\d{1,2}\s*[\/\.\-]\s*\d{1,2}"
+    r"|"
+    r"\d{3,4}\s*[\/\.\-]\s*\d{4}"
+    r"|"
+    r"\d{4}\s*=\s*\d{1,2}"
     r"|"
     r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t)?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2},?\s+\d{2,4}"
     r"|"
@@ -36,6 +42,18 @@ def normalize_oge_date(date_text: str | None) -> tuple[str | None, bool]:
     repaired_compact_candidate = _repair_compact_month_day_year(cleaned)
     if repaired_compact_candidate is not None:
         candidates.append(repaired_compact_candidate)
+
+    repaired_ocr_candidate = _repair_ocr_compact_month_day_year(cleaned)
+    if repaired_ocr_candidate is not None:
+        candidates.append(repaired_ocr_candidate)
+
+    repaired_missing_separator_candidate = _repair_missing_day_year_separator(cleaned)
+    if repaired_missing_separator_candidate is not None:
+        candidates.append(repaired_missing_separator_candidate)
+
+    repaired_artifact_separator_candidate = _repair_day_year_artifact_digit(cleaned)
+    if repaired_artifact_separator_candidate is not None:
+        candidates.append(repaired_artifact_separator_candidate)
 
     comma_stripped = cleaned.replace(",", "")
     if comma_stripped != cleaned:
@@ -101,6 +119,60 @@ def _repair_compact_month_day_year(value: str) -> str | None:
             return f"{fallback_month_text}/{fallback_day_text}/{year}"
 
     return None
+
+
+def _repair_ocr_compact_month_day_year(value: str) -> str | None:
+    compact_match = re.match(r"^(\d)(\d{2})=(\d{1,2})$", value)
+    if compact_match is not None:
+        month_text = compact_match.group(1)
+        day_text = compact_match.group(2)
+        year_suffix = compact_match.group(3)
+        if not _valid_month_day(month_text, day_text):
+            return None
+
+        year_text = f"202{year_suffix}" if len(year_suffix) == 1 else f"20{year_suffix}"
+        return f"{month_text}/{day_text}/{year_text}"
+
+    artifact_match = re.match(r"^(\d)\d(\d{2})=(\d{1,2})$", value)
+    if artifact_match is None:
+        return None
+
+    month_text = artifact_match.group(1)
+    day_text = artifact_match.group(2)
+    year_suffix = artifact_match.group(3)
+    if not _valid_month_day(month_text, day_text):
+        return None
+
+    year_text = f"202{year_suffix}" if len(year_suffix) == 1 else f"20{year_suffix}"
+    return f"{month_text}/{day_text}/{year_text}"
+
+
+def _repair_missing_day_year_separator(value: str) -> str | None:
+    compact_match = re.match(r"^(\d{1,2})[\/\.\-](\d{1,2})(\d{4})$", value)
+    if compact_match is None:
+        return None
+
+    month_text = compact_match.group(1)
+    day_text = compact_match.group(2)
+    year_text = compact_match.group(3)
+    if not _valid_month_day(month_text, day_text):
+        return None
+
+    return f"{month_text}/{day_text}/{year_text}"
+
+
+def _repair_day_year_artifact_digit(value: str) -> str | None:
+    artifact_match = re.match(r"^(\d{1,2})[\/\.\-](\d{2})1(\d{4})$", value)
+    if artifact_match is None:
+        return None
+
+    month_text = artifact_match.group(1)
+    day_text = artifact_match.group(2)
+    year_text = artifact_match.group(3)
+    if not _valid_month_day(month_text, day_text):
+        return None
+
+    return f"{month_text}/{day_text}/{year_text}"
 
 
 def _valid_month_day(month_text: str, day_text: str) -> bool:
