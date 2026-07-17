@@ -44,6 +44,24 @@ Environment variables override matching config-file keys.
 
 Use environment variables for secrets and environment-specific values instead of committing secret values in config files.
 
+#### Core Setting Details
+
+- `APP_NAME` controls the application title exposed by the API metadata and documentation pages. It matters when you want environment-specific labeling or clearer operator-facing docs. In production, keep it stable so diagnostics and generated API docs do not appear to refer to a different service.
+- `APP_VERSION` controls the version string exposed by the API and health surfaces. It matters when you need to confirm what build is running during rollout or incident response. In production, keep the value aligned with your release process rather than using ad hoc manual edits.
+- `API_V1_PREFIX` controls the mounted path prefix for all versioned API routes. It matters when placing the backend behind a proxy or when coordinating frontend API calls. In production, changing it requires the frontend and any external clients to use the new path.
+- `DATABASE_URL` controls the primary SQLAlchemy connection string for the application and Alembic. It matters for every API request, migration, ingestion run, and worker task that touches persistence. In production, keep SSL enabled, store the value only in secret management, and ensure it points at the intended live database.
+- `OGE_BASE_URL` controls the authoritative discovery entrypoint used to locate OGE 278-T filings. It matters whenever discovery or ingestion jobs run. In production, do not replace it with an unofficial source unless the product specification is intentionally updated.
+- `SCRAPER_REQUEST_TIMEOUT` controls how long discovery and download HTTP requests wait before failing. It matters when the OGE source is slow or intermittently unavailable. In production, values that are too low increase failed ingests, while values that are too high can tie up worker capacity during upstream outages.
+- `INGEST_WORKER_POLL_INTERVAL_SECONDS` controls how often the worker loop checks for queued ingestion jobs. It matters when jobs are submitted through the API and you care about how quickly background execution starts. In production, very small values increase idle polling overhead, while very large values make queued jobs appear unresponsive.
+- `INGEST_WORKER_MAX_JOBS_PER_RUN` controls how many queued jobs a worker execution cycle can drain before yielding. It matters when multiple ingestion jobs accumulate or when you scale worker throughput. In production, set it high enough to prevent job backlog growth without allowing one worker pass to monopolize database and network resources.
+- `RUNTIME_ENVIRONMENT` controls runtime mode decisions that differ between local and non-local operation, including default logging behavior. It matters whenever you rely on automatic environment-sensitive defaults. In production, use `non_local` so cloud logging and other non-local behaviors are selected consistently.
+- `LOG_LEVEL` controls the minimum severity emitted by the application logger. It matters during debugging, deployment verification, and ongoing operations. In production, prefer `INFO` for normal operation and reserve `DEBUG` for short-lived investigations because debug-level logs can be noisy and more expensive to retain.
+- `LOG_FORMAT` controls whether logs render as human-readable text or structured JSON. It matters for local troubleshooting versus centralized log aggregation. In production, prefer `json` or `auto` with `non_local` so logs stay machine-parseable in Fly or other hosted log pipelines.
+- `LOG_ENABLE_ROW_DEBUG` controls whether parser row-level diagnostics are emitted during ingestion. It matters when debugging malformed or inconsistent PDF extraction behavior. In production, leave it disabled unless you are actively investigating parser issues because it can produce high-volume logs with low day-to-day operational value.
+- `LOG_FILE_PATH` controls the file destination used for local file-backed logging. It matters when you rely on host-level log inspection or persistent local log files. In production, ensure the path is writable only if your runtime intentionally keeps file logs; otherwise prefer process-output logging captured by the platform.
+- `CORS_ALLOW_ORIGINS` controls which browser origins are allowed to call the API through CORS. It matters when the frontend is hosted separately from the backend or when additional trusted browser clients need access. In production, keep this list narrow and explicit rather than allowing broad wildcard-style access.
+- `APP_CONFIG_FILE` controls the optional TOML file path used as the default configuration source after environment variables. It matters when you maintain multiple operator-managed config files or alternate local setups. In production, prefer secrets and explicit environment variables for sensitive or environment-specific values instead of relying on mutable files in the container.
+
 ### Frontend Manual Fetch Defaults
 
 The frontend manual fetch control uses backend-owned configuration values exposed through the ingestion API.
@@ -57,6 +75,12 @@ The frontend manual fetch control uses backend-owned configuration values expose
 The frontend reads the effective values through `GET /api/v1/ingest/defaults`.
 If backend configuration is invalid, startup should fail safely before the frontend receives a malformed defaults payload.
 If the defaults API surface is unavailable, the UI should fail safely without submitting a malformed ingestion request.
+
+#### Manual Fetch Setting Details
+
+- `MANUAL_INGEST_DEFAULT_MODE` controls the ingestion mode submitted by the frontend manual fetch control when the user clicks `Fetch latest transactions`. It matters whenever the browser triggers an ingestion run through the defaults endpoint. In production, keep it aligned with supported backend modes so the UI does not offer a workflow the backend rejects.
+- `MANUAL_INGEST_DEFAULT_LIMIT` controls how many discovered filings a single manual fetch job will ingest by default. It matters when operators or users expect one click to fetch more than the most recent filing. In production, larger values improve data refresh breadth but increase job runtime, upstream requests, and the chance of partial failures within one submission.
+- `MANUAL_INGEST_MAX_LIMIT` controls the upper bound the backend accepts for manual fetch limits. It matters when you later expose configurable fetch size in the UI or trigger manual runs through the API. In production, keep the maximum low enough to bound resource use and external load against the OGE source.
 
 ## Logging
 
