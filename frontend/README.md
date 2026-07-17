@@ -34,7 +34,8 @@ Unsupported local verification path:
 ## Runtime Configuration
 
 - `VITE_API_BASE_URL` (string): backend API root URL.
-- Default value: `http://127.0.0.1:8000/api/v1`.
+- Default value in local development: `http://127.0.0.1:8000/api/v1`.
+- Default value in deployed builds served by the backend: `/api/v1`.
 
 Manual fetch defaults are backend-owned and are read by the frontend through `GET /api/v1/ingest/defaults`.
 
@@ -43,6 +44,8 @@ Example:
 ```bash
 VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1" npm run dev
 ```
+
+When the frontend is built into the backend image, browser requests to `/` and frontend application routes are served by FastAPI and the frontend calls the colocated API through the relative `/api/v1` base URL.
 
 Manual fetch prerequisite:
 

@@ -1,8 +1,11 @@
 import logging
+from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -16,6 +19,11 @@ configure_logging(
     log_file_path=settings.log_file_path,
 )
 logger = logging.getLogger(__name__)
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
+FRONTEND_INDEX_PATH = FRONTEND_DIST_DIR / "index.html"
+FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
 
 
 app = FastAPI(
@@ -31,6 +39,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if FRONTEND_ASSETS_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_ASSETS_DIR), name="frontend-assets")
+
+
+@app.get("/", include_in_schema=False, response_model=None)
+def root():
+    if FRONTEND_INDEX_PATH.is_file():
+        return FileResponse(FRONTEND_INDEX_PATH)
+    return RedirectResponse(url=app.docs_url)
 
 
 @app.middleware("http")
@@ -65,3 +83,23 @@ async def request_context_middleware(request: Request, call_next):
 
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+
+@app.get("/{full_path:path}", include_in_schema=False, response_model=None)
+def frontend_routes(full_path: str):
+    reserved_prefixes = [
+        settings.api_v1_prefix.lstrip("/"),
+        "docs",
+        "openapi.json",
+        "redoc",
+        "assets",
+    ]
+    normalized_path = full_path.lstrip("/")
+
+    if any(normalized_path == prefix or normalized_path.startswith(f"{prefix}/") for prefix in reserved_prefixes):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+
+    if FRONTEND_INDEX_PATH.is_file():
+        return FileResponse(FRONTEND_INDEX_PATH)
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")

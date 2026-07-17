@@ -41,7 +41,7 @@ def test_request_middleware_sets_request_id_and_logs_failed_request(caplog) -> N
     caplog.set_level(logging.WARNING)
     client = TestClient(app)
 
-    response = client.get("/not-a-real-route")
+    response = client.get("/assets/not-a-real-file.js")
 
     assert response.status_code == 404
     assert response.headers.get("x-request-id") is None
@@ -56,12 +56,34 @@ def test_request_middleware_sanitizes_request_id_header(caplog) -> None:
     caplog.set_level(logging.WARNING)
     client = TestClient(app)
 
-    response = client.get("/not-a-real-route", headers={"x-request-id": "bad\nvalue\t***"})
+    response = client.get("/assets/not-a-real-file.js", headers={"x-request-id": "bad\nvalue\t***"})
 
     assert response.status_code == 404
     failed_records = [record for record in caplog.records if record.getMessage() == "api_request_failed"]
     assert failed_records
     assert getattr(failed_records[-1], "request_id", None) == "badvalue"
+
+
+def test_root_serves_frontend_shell() -> None:
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "<div id=\"root\"></div>" in response.text
+
+
+def test_frontend_route_fallback_serves_frontend_shell_without_failed_request_log(caplog) -> None:
+    caplog.set_level(logging.WARNING)
+    client = TestClient(app)
+
+    response = client.get("/transactions/example")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    failed_records = [record for record in caplog.records if record.getMessage() == "api_request_failed"]
+    assert failed_records == []
 
 
 def test_configure_logging_writes_same_event_to_stream_and_file(tmp_path) -> None:

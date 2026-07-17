@@ -184,6 +184,8 @@ cd /path/to/oge.gl
 fly deploy
 ```
 
+The Fly image builds the React frontend and serves it from the same FastAPI process. The deployed site root serves the frontend shell and the frontend calls the colocated API through `/api/v1`.
+
 5. Scale API and worker processes.
 
 ```bash

@@ -62,6 +62,7 @@ Responsibilities:
 - preserve filter state in the URL
 - link results to original PDFs
 - consume only API endpoints, not the OGE source site directly
+- support deployment as static assets served by the backend process when a single-app runtime is used
 
 ## Suggested Repository Structure
 
@@ -156,6 +157,8 @@ The frontend should implement:
 - loading, empty, and error states
 - direct links to source PDFs
 - centralized API client usage for transaction and filing requests
+
+For single-app deployments, the frontend may be built as static assets and served by the backend process while continuing to call the backend through the documented API routes.
 
 The frontend should not contain any scraping logic.
 
