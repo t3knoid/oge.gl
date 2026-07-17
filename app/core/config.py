@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
 
 
@@ -36,6 +36,20 @@ class Settings(BaseSettings):
         env_prefix="",
         extra="ignore",
     )
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_postgresql_driver(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+
+        if value.startswith("postgres://"):
+            return f"postgresql+psycopg://{value[len('postgres://') :]}"
+
+        if value.startswith("postgresql://"):
+            return f"postgresql+psycopg://{value[len('postgresql://') :]}"
+
+        return value
 
     @classmethod
     def settings_customise_sources(

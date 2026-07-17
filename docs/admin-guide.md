@@ -1,3 +1,5 @@
+cd
+
 # oge.gl Admin Guide
 
 This guide covers runtime administration for oge.gl, including backend configuration, logging, and deployment workflows.
@@ -15,6 +17,8 @@ Override precedence:
 5. file secret values
 
 Environment variables override matching config-file keys.
+
+`DATABASE_URL` values using Fly- or platform-style `postgres://...` or driverless `postgresql://...` PostgreSQL URLs are normalized to `postgresql+psycopg://...` at startup so SQLAlchemy uses the installed `psycopg` driver.
 
 ### Configuration Reference
 
@@ -42,11 +46,11 @@ Use environment variables for secrets and environment-specific values instead of
 
 The frontend manual fetch control uses backend-owned configuration values exposed through the ingestion API.
 
-| Setting | Default | Type | Allowed values |
-| --- | --- | --- | --- |
-| `MANUAL_INGEST_DEFAULT_MODE` (`manual_ingest_default_mode`) | `incremental` | string | `incremental` |
-| `MANUAL_INGEST_DEFAULT_LIMIT` (`manual_ingest_default_limit`) | `1` | integer | integer from `1` to `25` |
-| `MANUAL_INGEST_MAX_LIMIT` (`manual_ingest_max_limit`) | `25` | integer | integer `>= 1` |
+| Setting                                                           | Default         | Type    | Allowed values              |
+| ----------------------------------------------------------------- | --------------- | ------- | --------------------------- |
+| `MANUAL_INGEST_DEFAULT_MODE` (`manual_ingest_default_mode`)   | `incremental` | string  | `incremental`             |
+| `MANUAL_INGEST_DEFAULT_LIMIT` (`manual_ingest_default_limit`) | `1`           | integer | integer from`1` to `25` |
+| `MANUAL_INGEST_MAX_LIMIT` (`manual_ingest_max_limit`)         | `25`          | integer | integer`>= 1`             |
 
 The frontend reads the effective values through `GET /api/v1/ingest/defaults`.
 If backend configuration is invalid, startup should fail safely before the frontend receives a malformed defaults payload.
@@ -170,6 +174,8 @@ fly secrets set \
   LOG_LEVEL='INFO' \
   SCRAPER_REQUEST_TIMEOUT='30'
 ```
+
+If the managed database provider returns a bare `postgres://...` or `postgresql://...` URL, it can be used directly. The backend normalizes that value to the `psycopg` SQLAlchemy driver during startup and release-time migrations.
 
 4. Deploy with release-time migrations.
 

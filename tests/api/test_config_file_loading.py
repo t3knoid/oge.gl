@@ -88,6 +88,22 @@ def test_missing_config_file_path_falls_back_to_defaults(monkeypatch, tmp_path: 
     assert settings.log_level == "INFO"
 
 
+def test_settings_normalize_fly_postgres_url(monkeypatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgres://postgres:postgres@example.internal:5432/oge")
+
+    settings = Settings()
+
+    assert settings.database_url == "postgresql+psycopg://postgres:postgres@example.internal:5432/oge"
+
+
+def test_settings_normalize_driverless_postgresql_url(monkeypatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql://postgres:postgres@example.internal:5432/oge")
+
+    settings = Settings()
+
+    assert settings.database_url == "postgresql+psycopg://postgres:postgres@example.internal:5432/oge"
+
+
 def test_api_and_worker_use_shared_settings_singleton() -> None:
     from app import main as main_module
     from app.workers import runner as runner_module
