@@ -1,3 +1,5 @@
+ ol
+
 cd
 
 # oge.gl Admin Guide
@@ -152,18 +154,72 @@ export MANUAL_INGEST_MAX_LIMIT="25"
 
 Open `http://127.0.0.1:5173` for UI verification.
 
-### Managed Cloud Deployment (Fly.io + Supabase)
+### Managed Cloud Deployment (Fly.io + Supabase + Cloudflare)
 
-1. Provision Supabase PostgreSQL and capture an SSL-enabled `DATABASE_URL`.
-2. Authenticate Fly CLI and initialize app from repository root.
+This deployment path keeps a single-origin serving model in production.
+
+Production serving model:
+
+- Supabase provides the PostgreSQL database.
+- Fly.io runs the container image built from the repository root `Dockerfile`.
+- FastAPI serves both the compiled React frontend and the JSON API from the same public origin.
+- Cloudflare fronts the public hostname for DNS, TLS, proxying, and WAF controls.
+- The deployed frontend calls the colocated API through `/api/v1`.
+
+#### Prerequisites
+
+Create or confirm these operator prerequisites before deployment:
+
+- a Supabase project with PostgreSQL access
+- a Fly.io account with `flyctl` installed
+- a Cloudflare zone for `oge.gl`
+- repository access to build and deploy the current branch
+
+Verify the Fly CLI is installed and authenticated:
+
+```bash
+fly version
+fly auth login
+```
+
+#### Provision Supabase PostgreSQL
+
+1. Create the Supabase project that will hold the production database.
+2. Keep the database region close to the chosen Fly region when practical.
+3. Copy the PostgreSQL connection string for application use.
+4. Ensure the connection string includes SSL behavior. If assembled manually, keep `sslmode=require`.
+5. Keep the database URL only in operator secret storage. Do not commit it to tracked files.
+6. Prefer the direct Supabase connection string when the Fly runtime supports it. If IPv4 compatibility is required, use the Supavisor session-mode URL instead of transaction mode.
+
+If the managed database provider returns a bare `postgres://...` or `postgresql://...` URL, it can be used directly. The backend normalizes that value to the `psycopg` SQLAlchemy driver during startup and release-time migrations.
+
+#### Create The Fly.io App
+
+Initialize the Fly app from the repository root without changing the application architecture.
 
 ```bash
 cd /path/to/oge.gl
-fly auth login
 fly launch --no-deploy
 ```
 
-3. Set runtime settings as Fly secrets.
+Recommended Fly launch choices:
+
+- app name: choose the production app name you intend to keep stable
+- region: choose the closest practical region to the Supabase database
+- database: do not provision Fly Postgres for this deployment path
+
+Confirm the generated Fly configuration matches the container behavior:
+
+- `internal_port = 8000`
+- `release_command = "python -m alembic upgrade head"`
+- HTTP and HTTPS handlers remain enabled for the public service
+- the root `Dockerfile` is used for builds
+
+The Fly image builds the React frontend and serves it from the same FastAPI process. The deployed site root serves the frontend shell and the frontend calls the colocated API through `/api/v1`.
+
+#### Configure Production Runtime Settings On Fly.io
+
+Store production settings in Fly secrets rather than tracked files.
 
 ```bash
 fly secrets set \
@@ -172,33 +228,140 @@ fly secrets set \
   API_PORT='8000' \
   OGE_BASE_URL='https://www.oge.gov/web/OGE.nsf/Officials%20Individual%20Disclosures%20Search%20Collection?OpenForm' \
   LOG_LEVEL='INFO' \
-  SCRAPER_REQUEST_TIMEOUT='30'
+  LOG_FORMAT='json' \
+  RUNTIME_ENVIRONMENT='non_local' \
+  SCRAPER_REQUEST_TIMEOUT='30' \
+  PDF_STORAGE_DIR='/data/pdfs'
 ```
 
-If the managed database provider returns a bare `postgres://...` or `postgresql://...` URL, it can be used directly. The backend normalizes that value to the `psycopg` SQLAlchemy driver during startup and release-time migrations.
+Production guidance for the key runtime values:
 
-4. Deploy with release-time migrations.
+- `DATABASE_URL` must use the Supabase PostgreSQL connection string with SSL enabled.
+- `API_HOST` and `API_PORT` should remain aligned with the container bind target `0.0.0.0:8000`.
+- `LOG_FORMAT=json` and `RUNTIME_ENVIRONMENT=non_local` keep logs suitable for cloud aggregation.
+- `PDF_STORAGE_DIR=/data/pdfs` should remain on the mounted writable data path.
+
+#### Configure Cloudflare For The Public Hostname
+
+Cloudflare remains the public edge in front of Fly.io.
+
+DNS and proxy setup:
+
+1. Create or update proxied DNS records for `oge.gl` that route traffic to the Fly app.
+2. If you keep a `www` hostname, either proxy it to the same Fly app or configure a Cloudflare redirect to the canonical host.
+3. Keep the Cloudflare orange-cloud proxy enabled for the public hostname.
+
+Cloudflare origin certificate setup:
+
+1. Open `SSL/TLS -> Origin Server` in Cloudflare for the target zone.
+2. Click `Create Certificate`.
+3. Use these certificate settings:
+
+- private key type: `RSA (2048)`
+- hostnames: `oge.gl` and `*.oge.gl` when a wildcard is appropriate
+- certificate validity: `15 years`
+
+4. Copy both the origin certificate and private key immediately. Cloudflare shows the private key only once.
+5. Save the origin certificate as `origin-cert.pem` and the private key as `origin-key.pem` in a secure local operator workspace.
+6. Add the custom domain to the Fly app if it is not already present.
+
+```bash
+fly certs add oge.gl -a oge-gl
+```
+
+7. Import the Cloudflare origin certificate and private key into Fly.
+
+```bash
+fly certs import oge.gl \
+  --fullchain origin-cert.pem \
+  --private-key origin-key.pem \
+  --app oge-gl
+```
+
+8. Verify the imported certificate before validating strict TLS through Cloudflare.
+
+```bash
+fly certs check oge.gl --app oge-gl
+```
+
+TLS and edge settings:
+
+- use Cloudflare SSL mode `Full (strict)`
+- keep automatic HTTPS redirection enabled at the edge
+- keep HSTS and related browser-hardening settings aligned with your broader domain policy
+- treat the Fly hostname as an operator endpoint rather than the public product URL
+
+WAF and abuse-control guidance:
+
+- enable Cloudflare managed WAF rules for the public hostname
+- use Cloudflare rate limits only as an edge complement, not as a replacement for application-level protections
+- avoid trusting arbitrary forwarded client metadata unless you have verified the direct proxy CIDRs that actually connect to Fly
+
+#### Deploy The Application
+
+Deploy the current application image to Fly.io from the repository root.
 
 ```bash
 cd /path/to/oge.gl
 fly deploy
 ```
 
-The Fly image builds the React frontend and serves it from the same FastAPI process. The deployed site root serves the frontend shell and the frontend calls the colocated API through `/api/v1`.
+The root `fly.toml` runs `python -m alembic upgrade head` as a Fly release command during deploy, so schema migrations are applied before the new app version serves traffic.
 
-5. Scale API and worker processes.
+After the first successful deploy, confirm the app is healthy:
+
+```bash
+fly status
+fly logs
+```
+
+#### Scale Worker Capacity
+
+Scale the API and worker processes after the first successful deploy.
 
 ```bash
 fly scale count app=1 worker=1
 ```
 
-6. Verify post-deploy behavior.
+#### Post-Deploy Verification
+
+Run these checks after the first deploy and after every production update.
+
+Edge and API checks:
 
 ```bash
-curl -i https://YOUR_API_HOST/api/v1/health
-curl -i "https://YOUR_API_HOST/api/v1/transactions?page=1&page_size=5"
-curl -i https://YOUR_API_HOST/api/v1/ingest/jobs
+curl -I https://oge.gl/
+curl -i https://oge.gl/api/v1/health
+curl -i "https://oge.gl/api/v1/transactions?page=1&page_size=5"
+curl -i https://oge.gl/api/v1/ingest/jobs
 ```
+
+Browser and functional checks:
+
+- open `https://oge.gl/` and confirm the React frontend loads without a separate Vite server
+- confirm the search UI renders and issues API requests against `/api/v1`
+- verify a transaction result links to the source PDF provided by the backend
+- submit a manual fetch and confirm the ingestion job is accepted and visible through the UI or API
+
+#### Common Production Issues
+
+The Fly deployment is healthy but the site is unreachable:
+
+- confirm Cloudflare DNS records point to the correct Fly target
+- confirm Cloudflare proxying is enabled for the public hostname
+- confirm Cloudflare TLS mode remains `Full (strict)`
+
+Database connectivity fails after deploy:
+
+- confirm `DATABASE_URL` matches the current Supabase connection string
+- confirm SSL remains enabled in the database URL
+- confirm the Fly region and Supabase region are not introducing avoidable latency or firewall mismatches
+
+Migrations fail during rollout:
+
+- confirm the release image includes the expected Alembic revisions
+- confirm `python -m alembic upgrade head` is running against the intended production database
+- stop the rollout and resolve the schema issue before retrying the deploy
 
 For architecture and local development requirements, see [docs/development-requirements.md](development-requirements.md).
 For product behavior and API expectations, see [docs/product-specification.md](product-specification.md).
