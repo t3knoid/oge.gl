@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -58,6 +58,24 @@ class FilingIdentityConflictError(Exception):
 
 
 class IngestionResultRepository:
+    def filing_exists(
+        self,
+        session: Session,
+        *,
+        external_id: str,
+        source_pdf_url: str,
+    ) -> bool:
+        predicates = []
+        if external_id:
+            predicates.append(Filing.external_id == external_id)
+        if source_pdf_url:
+            predicates.append(Filing.source_pdf_url == source_pdf_url)
+
+        if not predicates:
+            return False
+
+        return session.scalar(select(Filing.id).where(or_(*predicates)).limit(1)) is not None
+
     def find_filing_by_identity(
         self,
         session: Session,

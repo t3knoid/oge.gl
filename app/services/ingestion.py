@@ -6,10 +6,13 @@ from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import unquote
 
+from sqlalchemy.orm import Session
+
 from app.discovery.models import DiscoveryRecord
 from app.infrastructure.pdf_downloads import PdfDownloader
 from app.parsing.dates import normalize_oge_date
 from app.parsing.transactions import ParseWarning, ParsedDocument, ParsedTransactionRow, parse_pdf_bytes
+from app.repositories.ingestion_results import IngestionResultRepository
 
 
 class DiscoveryClient(Protocol):
@@ -88,6 +91,7 @@ class IngestionWorkflowService:
         discovery_client: DiscoveryClient | None = None,
         pdf_downloader: PdfDownloader | None = None,
         pdf_parser: PdfParser | None = None,
+        ingestion_result_repository: IngestionResultRepository | None = None,
     ) -> None:
         if discovery_client is None:
             from app.discovery.client import OgeDiscoveryClient
@@ -97,11 +101,30 @@ class IngestionWorkflowService:
         self.discovery_client = discovery_client
         self.pdf_downloader = pdf_downloader or PdfDownloader()
         self.pdf_parser = pdf_parser or _DefaultPdfParser()
+        self.ingestion_result_repository = ingestion_result_repository or IngestionResultRepository()
 
-    def run_incremental_discovery(self, *, limit: int | None = None) -> DiscoveryWorkflowResult:
+    def run_incremental_discovery(
+        self,
+        *,
+        session: Session | None = None,
+        limit: int | None = None,
+        force_reprocess: bool = False,
+    ) -> DiscoveryWorkflowResult:
         discovered = self.discovery_client.discover_transaction_filings()
         eligible_records = [record for record in discovered if record.source_pdf_url]
         skipped_missing_pdf_count = len(discovered) - len(eligible_records)
+
+        if session is not None and not force_reprocess:
+            eligible_records = [
+                record
+                for record in eligible_records
+                if not self.ingestion_result_repository.filing_exists(
+                    session,
+                    external_id=self._build_external_id(record),
+                    source_pdf_url=record.source_pdf_url or "",
+                )
+            ]
+
         if limit is not None:
             eligible_records = eligible_records[:limit]
 
@@ -111,8 +134,18 @@ class IngestionWorkflowService:
             skipped_missing_pdf_count=skipped_missing_pdf_count,
         )
 
-    def ingest_discovered_filings(self, *, limit: int | None = None) -> IngestionWorkflowResult:
-        discovery_result = self.run_incremental_discovery(limit=limit)
+    def ingest_discovered_filings(
+        self,
+        *,
+        session: Session | None = None,
+        limit: int | None = None,
+        force_reprocess: bool = False,
+    ) -> IngestionWorkflowResult:
+        discovery_result = self.run_incremental_discovery(
+            session=session,
+            limit=limit,
+            force_reprocess=force_reprocess,
+        )
         filing_results = [self._ingest_record(record) for record in discovery_result.eligible_records]
         failed_count = sum(1 for result in filing_results if result.failure is not None)
         return IngestionWorkflowResult(

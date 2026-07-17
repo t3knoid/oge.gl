@@ -33,7 +33,13 @@ def _sqlite_session() -> Session:
 
 
 class StubWorkflowService:
-    def ingest_discovered_filings(self, *, limit: int | None = None) -> IngestionWorkflowResult:
+    def ingest_discovered_filings(
+        self,
+        *,
+        session: Session | None = None,
+        limit: int | None = None,
+        force_reprocess: bool = False,
+    ) -> IngestionWorkflowResult:
         filing_results = [_successful_filing_result(with_warning=False)]
         if limit is not None:
             filing_results = filing_results[:limit]
@@ -46,7 +52,13 @@ class StubWorkflowService:
 
 
 class FailingWorkflowService:
-    def ingest_discovered_filings(self, *, limit: int | None = None) -> IngestionWorkflowResult:
+    def ingest_discovered_filings(
+        self,
+        *,
+        session: Session | None = None,
+        limit: int | None = None,
+        force_reprocess: bool = False,
+    ) -> IngestionWorkflowResult:
         raise RuntimeError("upstream discovery failed")
 
 
@@ -54,7 +66,13 @@ class StubIngestionWorkflowService:
     def __init__(self, result: IngestionWorkflowResult) -> None:
         self.result = result
 
-    def ingest_discovered_filings(self, *, limit: int | None = None) -> IngestionWorkflowResult:
+    def ingest_discovered_filings(
+        self,
+        *,
+        session: Session | None = None,
+        limit: int | None = None,
+        force_reprocess: bool = False,
+    ) -> IngestionWorkflowResult:
         return self.result
 
 

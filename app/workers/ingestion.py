@@ -65,7 +65,11 @@ class IngestionWorkerService:
 
         try:
             limit = job.source_filters.get("limit") if isinstance(job.source_filters, dict) else None
-            workflow_result = self.workflow_service.ingest_discovered_filings(limit=limit)
+            workflow_result = self.workflow_service.ingest_discovered_filings(
+                session=session,
+                limit=limit,
+                force_reprocess=job.force_reprocess,
+            )
             persistence_summary = self.persistence_service.persist_workflow_result(session, workflow_result)
             progress = _JobProgress(
                 discovered_count=workflow_result.discovered_count,

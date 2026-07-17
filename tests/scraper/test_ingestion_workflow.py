@@ -1,4 +1,10 @@
 from app.discovery.models import DiscoveryRecord
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.db.base import Base
+from app.db.models import Filing
 from app.infrastructure.pdf_downloads import PdfDownloader
 from app.services.ingestion import IngestionWorkflowService
 
@@ -140,6 +146,42 @@ class StubDiscoveryClient:
         ]
 
 
+class TwoPdfDiscoveryClient:
+    def discover_transaction_filings(self) -> list[DiscoveryRecord]:
+        return [
+            DiscoveryRecord(
+                filing_date="07/01/2026",
+                position="President",
+                type_label="278 Transaction",
+                filer_name="Trump, Donald J",
+                agency="White House Office",
+                level="n/a",
+                source_page_url="https://www.oge.gov/search",
+                source_pdf_url="https://www.oge.gov/files/one.pdf",
+            ),
+            DiscoveryRecord(
+                filing_date="07/02/2026",
+                position="Commissioner",
+                type_label="278 Transaction",
+                filer_name="Weaver, Douglas",
+                agency="Nuclear Regulatory Commission",
+                level="n/a",
+                source_page_url="https://www.oge.gov/search",
+                source_pdf_url="https://www.oge.gov/files/two.pdf",
+            ),
+        ]
+
+
+def _sqlite_session() -> Session:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine, autoflush=False, autocommit=False, class_=Session)()
+
+
 def test_workflow_wraps_discovery_client_and_filters_missing_pdf_records() -> None:
     service = IngestionWorkflowService(discovery_client=StubDiscoveryClient())
 
@@ -175,6 +217,42 @@ def test_workflow_downloads_and_parses_discovered_filings_into_structured_result
     assert filing_result.transactions[0].trade_type == "purchase"
     assert filing_result.transactions[0].transaction_date == "2026-05-08"
     assert filing_result.transactions[0].amount_min == 1001
+
+
+def test_incremental_discovery_skips_already_persisted_filings_before_limit() -> None:
+    session = _sqlite_session()
+    service = IngestionWorkflowService(
+        discovery_client=TwoPdfDiscoveryClient(),
+        pdf_downloader=StubPdfDownloader({"https://www.oge.gov/files/two.pdf": b"pdf-bytes"}),
+        pdf_parser=StubPdfParser(),
+    )
+
+    existing_record = TwoPdfDiscoveryClient().discover_transaction_filings()[0]
+    session.add(
+        Filing(
+            external_id=service._build_external_id(existing_record),
+            filer_name=existing_record.filer_name,
+            filer_title=existing_record.position,
+            agency=existing_record.agency,
+            report_type="278T",
+            filing_date=None,
+            source_page_url=existing_record.source_page_url,
+            source_pdf_url=existing_record.source_pdf_url or "",
+            source_pdf_sha256="a" * 64,
+            raw_metadata={},
+            ingest_status="completed",
+        )
+    )
+    session.commit()
+
+    result = service.ingest_discovered_filings(session=session, limit=1)
+
+    assert result.discovered_count == 2
+    assert len(result.filing_results) == 1
+    assert result.filing_results[0].filer_name == "Weaver, Douglas"
+    assert result.filing_results[0].source_pdf_url == "https://www.oge.gov/files/two.pdf"
+
+    session.close()
 
 
 def test_workflow_surfaces_download_failures_as_structured_results() -> None:
